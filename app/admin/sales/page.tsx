@@ -80,12 +80,7 @@ export default function SalesReportPage() {
   return (
     <div className="report">
       <div className="shell">
-        <Link href="/" className="back">← Red Wagon Farm</Link>
-
-        <nav className="tabs">
-          <Link href="/admin">Reservations</Link>
-          <Link href="/admin/sales" className="on">Till &amp; Sales</Link>
-        </nav>
+        <Link href="/" className="back">← Carter&apos;s Red Wagon Farm</Link>
 
         <header className="head">
           <div>

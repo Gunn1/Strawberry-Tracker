@@ -52,8 +52,8 @@ export default function RedWagonFarm() {
       {/* ===== top utility bar ===== */}
       <div className="topbar">
         <div className="wrap">
-          <div>🍓 <b>Now picking:</b> Strawberries — open daily 8am–6pm at the Farm</div>
-          <div>SW of Park Rapids (Farm) · East of Park Rapids (Market)</div>
+          <div>🍓 <b>Before you come out:</b> call (218) 732-4979 or check Facebook — it&apos;s always the most up to date</div>
+          <div>14766 119th Ave, Park Rapids, MN 56470</div>
         </div>
       </div>
 
@@ -68,14 +68,14 @@ export default function RedWagonFarm() {
               <circle cx="20" cy="46" r="6" fill="#271F17" /><circle cx="20" cy="46" r="2.4" fill="#F6EFE2" />
               <circle cx="42" cy="46" r="6" fill="#271F17" /><circle cx="42" cy="46" r="2.4" fill="#F6EFE2" />
             </svg>
-            <span className="name">Red Wagon Farm<small>Carter Family · Park Rapids, MN</small></span>
+            <span className="name">Carter&apos;s Red Wagon Farm<small>Park Rapids, Minnesota</small></span>
           </a>
           <nav className="main">
-            <a href="#places">Visit</a>
-            <a href="#upick">U-Pick</a>
-            <a href="#season">In Season</a>
-            <a href="#story">Our Family</a>
-            <a className="btn btn--primary nav-cta" href="#market">Market Hours</a>
+            <a href="#produce">Fresh Produce</a>
+            <a href="#upick">U-Pick Strawberries</a>
+            <a href="#fall">Corn Maze</a>
+            <a href="#contact">Contact</a>
+            <a className="btn btn--primary nav-cta" href="tel:+12187324979">Call (218) 732-4979</a>
           </nav>
           <button className="menu-btn" aria-label="Menu"><span></span><span></span><span></span></button>
         </div>
@@ -85,14 +85,14 @@ export default function RedWagonFarm() {
       <section className="hero">
         <div className="wrap hero-grid">
           <div className="reveal">
-            <span className="eyebrow">Family-grown southwest of Park Rapids since 1986</span>
+            <span className="eyebrow">The Carter family · Park Rapids, Minnesota</span>
             <h1>Picked this morning,<br /><em>on your table</em> tonight.</h1>
-            <p className="lede">Pick-your-own strawberries, a market full of our own produce, and pumpkin parties come fall — straight from the Carter family to yours.</p>
+            <p className="lede">Locally grown asparagus, rhubarb, and sweet strawberries — u-pick and ready-picked — plus a corn maze and fall fun, straight from our family to yours.</p>
             <div className="actions">
-              <Link className="btn btn--primary" href="/reserve">Reserve a U-pick window</Link>
-              <a className="btn btn--ghost" href="#season">See what&apos;s ripe now</a>
+              <a className="btn btn--primary" href="#upick">U-Pick strawberries</a>
+              <a className="btn btn--ghost" href="tel:+12187324979">Call (218) 732-4979</a>
             </div>
-            <p className="sign">&ldquo;Stewards of the soil we&apos;ve been entrusted with.&rdquo;</p>
+            <p className="sign">&ldquo;Come out, have some fun, and enjoy your time.&rdquo;</p>
           </div>
 
           {/* Hero photo. Drop a real image at public/hero.jpg and it shows
@@ -116,9 +116,9 @@ export default function RedWagonFarm() {
       <section id="places">
         <div className="wrap">
           <div className="sec-head reveal">
-            <span className="eyebrow">Two ways to visit</span>
-            <h2>One family, two stops.</h2>
-            <p>The Farm and the Market sit on opposite sides of Park Rapids — come for the picking, stay for the market shelves.</p>
+            <span className="eyebrow">Two ways to get our berries</span>
+            <h2>U-pick at the farm, or ready-picked around town.</h2>
+            <p>Come out and pick your own, or grab ours already picked at the Red Barn and area farmers&apos; markets.</p>
           </div>
           <div className="places">
             <article className="place place--farm reveal" id="farm">
@@ -130,11 +130,11 @@ export default function RedWagonFarm() {
                 </svg>
               </div>
               <div className="body">
-                <div className="where">Southwest of Park Rapids</div>
-                <h3>The Farm</h3>
-                <p className="desc">Where it grows. Pick your own strawberries late June through mid-July, then come back for pumpkin parties, the corn maze, wagon rides, and the pumpkin propeller all fall.</p>
-                <div className="tags"><span className="tag">U-pick</span><span className="tag">Corn maze</span><span className="tag">Pumpkin parties</span><span className="tag">Family rides</span></div>
-                <a className="more" href="#upick">Plan a visit <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></a>
+                <div className="where">14766 119th Ave, Park Rapids</div>
+                <h3>U-Pick at the Farm</h3>
+                <p className="desc">We take you out by wagon to rows overflowing with big, red, ripe berries. Picking is by the pound — we provide the flats, so please don&apos;t bring your own containers. Open 7 a.m.–noon, Monday–Saturday (closed Sundays).</p>
+                <div className="tags"><span className="tag">By the pound</span><span className="tag">Wagon ride</span><span className="tag">No appointments</span></div>
+                <a className="more" href="#upick">U-pick details <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></a>
               </div>
             </article>
 
@@ -148,68 +148,69 @@ export default function RedWagonFarm() {
                 </svg>
               </div>
               <div className="body">
-                <div className="where">East of Park Rapids</div>
-                <h3>The Market</h3>
-                <p className="desc">Our own plants and produce alongside jams &amp; jellies, canned goods, local milk, popcorn, snacks, crafts, and — come autumn — fresh-pressed cider and Dutch apple pies.</p>
-                <div className="tags"><span className="tag">Fresh produce</span><span className="tag">Jams &amp; jellies</span><span className="tag">Bakery</span><span className="tag">Crafts</span></div>
-                <a className="more" href="#today">See today&apos;s shelves <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></a>
+                <div className="where">Around Park Rapids &amp; beyond</div>
+                <h3>Ready-Picked</h3>
+                <p className="desc">Can&apos;t make it out? Find our ready-picked quarts and buckets at the Red Barn (Mon–Fri 10–5) and at the Park Rapids, Walker, and Detroit Lakes farmers&apos; markets. 10# flats are available by pre-order for pickup at the farm.</p>
+                <div className="tags"><span className="tag">Quarts</span><span className="tag">Buckets</span><span className="tag">10# flats</span></div>
+                <a className="more" href="#contact">Where to find us <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></a>
               </div>
             </article>
           </div>
         </div>
       </section>
 
-      {/* ===== U-pick band — booking hook ===== */}
+      {/* ===== U-pick info ===== */}
       <section className="upick" id="upick">
         <div className="wrap grid">
           <div className="reveal">
-            <span className="eyebrow">Late June – mid July</span>
-            <h2>Reserve your strawberry picking window.</h2>
-            <p>We cap each window so the rows aren&apos;t crowded and the berries last all morning. Pick a time, bring the family, and we&apos;ll have flats ready when you arrive.</p>
+            <span className="eyebrow">U-Pick Strawberries · late June – mid July</span>
+            <h2>Pick your own — by the pound.</h2>
+            <p>Our 2026 berries should be ready by late June — we&apos;ll update Facebook as the season nears. We don&apos;t take appointments: Mondays usually pick best (we&apos;re closed Sundays) and Friday–Saturday are busiest. Picking is by the pound this year, and we provide the flats — please don&apos;t bring your own containers.</p>
+            <p className="fineprint">We welcome children, but they must stay with you at all times. No pets or smoking on the property. If you&apos;re not feeling well, please come another day.</p>
           </div>
           <div className="booking reveal">
-            <div className="row"><span>Sat · 8:00–9:30 AM</span><span className="slots">6 spots left</span></div>
-            <div className="row"><span>Sat · 9:30–11:00 AM</span><span className="full">Full</span></div>
-            <div className="row"><span>Sat · 11:00–12:30 PM</span><span className="slots">11 spots left</span></div>
-            <div className="row"><span>Sun · 8:00–9:30 AM</span><span className="slots">Open</span></div>
-            <Link className="btn btn--onpine" href="/reserve">Choose a time →</Link>
+            <div className="row"><span>Hours</span><b>7 a.m. – noon</b></div>
+            <div className="row"><span>Days</span><b>Mon – Sat · closed Sundays</b></div>
+            <div className="row"><span>Finish by</span><b>12:30 p.m.</b></div>
+            <p className="callnote">Always call <a href="tel:+12187324979">(218) 732-4979</a> or check Facebook before coming — we may close for weather, ripening, or once we&apos;re picked out.</p>
+            <a className="btn btn--onpine" href="tel:+12187324979">Call before you come →</a>
           </div>
         </div>
       </section>
 
-      {/* ===== seasonal timeline ===== */}
-      <section className="season" id="season">
+      {/* ===== the farm's year + fall fun ===== */}
+      <section className="season" id="fall">
         <div className="wrap">
           <div className="sec-head reveal">
             <span className="eyebrow">The farm&apos;s year</span>
-            <h2>A whole season to look forward to.</h2>
-            <p>We grow with the calendar, not against it. Here&apos;s roughly when everything comes in.</p>
+            <h2>Fresh all season — and fall fun to follow.</h2>
+            <p>We grow with the calendar, not against it. Here&apos;s roughly when everything comes in. Exact dates depend on the weather, so check Facebook as each season nears.</p>
           </div>
           <div className="timeline">
             <div className="month reveal">
-              <div className="when">Late June – July</div>
+              <div className="when">May – June</div>
+              <h3><svg viewBox="0 0 24 24" fill="#8FA06A"><rect x="10" y="4" width="4" height="16" rx="2" /></svg>Asparagus</h3>
+              <p>Tender, sweet shoots that herald the springtime.</p>
+            </div>
+            <div className="month reveal">
+              <div className="when">Late May – early July</div>
+              <h3><svg viewBox="0 0 24 24" fill="#C5392C"><rect x="10" y="4" width="4" height="16" rx="2" /></svg>Rhubarb</h3>
+              <p>Ruby-red stalks — perfect for pies and jam.</p>
+            </div>
+            <div className="month reveal">
+              <div className="when">Late June – mid July</div>
               <h3><svg viewBox="0 0 24 24" fill="#C5392C"><circle cx="12" cy="14" r="7" /></svg>Strawberries</h3>
-              <p>U-pick opens. The reason everyone marks their calendar.</p>
+              <p>U-pick and ready-picked. A season lasts about 2–3 weeks.</p>
             </div>
             <div className="month reveal">
-              <div className="when">July – August</div>
-              <h3><svg viewBox="0 0 24 24" fill="#8FA06A"><circle cx="12" cy="12" r="8" /></svg>Summer produce</h3>
-              <p>Tomatoes, peppers, cucumbers, beans, melons — the market fills up.</p>
+              <div className="when">Summer</div>
+              <h3><svg viewBox="0 0 24 24" fill="#E2A33C"><rect x="9" y="4" width="6" height="16" rx="3" /></svg>Summer produce</h3>
+              <p>Locally grown fruits and vegetables in season.</p>
             </div>
             <div className="month reveal">
-              <div className="when">Aug – September</div>
-              <h3><svg viewBox="0 0 24 24" fill="#E2A33C"><rect x="9" y="4" width="6" height="16" rx="3" /></svg>Sweet corn</h3>
-              <p>Our own non-GMO sweet corn, picked fresh by the dozen.</p>
-            </div>
-            <div className="month reveal">
-              <div className="when">September – Oct</div>
-              <h3><svg viewBox="0 0 24 24" fill="#C5392C"><circle cx="12" cy="13" r="7" /></svg>Apples &amp; cider</h3>
-              <p>Minnesota apples, fresh-pressed cider, and Dutch apple pies.</p>
-            </div>
-            <div className="month reveal">
-              <div className="when">Late Sept – Oct</div>
-              <h3><svg viewBox="0 0 24 24" fill="#E2A33C"><circle cx="12" cy="13" r="7" /></svg>Pumpkin parties</h3>
-              <p>The corn maze, wagon rides, and pumpkin propeller every Saturday.</p>
+              <div className="when">Fall</div>
+              <h3><svg viewBox="0 0 24 24" fill="#E2A33C"><circle cx="12" cy="13" r="7" /></svg>Corn maze &amp; fall fun</h3>
+              <p>Wagon rides and the corn maze when the leaves turn.</p>
             </div>
           </div>
         </div>
@@ -230,7 +231,7 @@ export default function RedWagonFarm() {
           <div className="reveal">
             <span className="eyebrow">Why we farm</span>
             <blockquote>We grow our fruits and vegetables to provide for your family in a special way — <span>knowing you&apos;re buying directly from ours.</span></blockquote>
-            <p className="who"><b>The Carter Family</b> · Stewards of this soil since 1986</p>
+            <p className="who"><b>The Carter Family</b> · Park Rapids, Minnesota</p>
           </div>
         </div>
       </section>
@@ -268,70 +269,66 @@ export default function RedWagonFarm() {
         </div>
       </section>
 
-      {/* ===== today at the market ===== */}
-      <section className="today" id="today">
+      {/* ===== fresh produce ===== */}
+      <section className="today" id="produce">
         <div className="wrap">
           <div className="head reveal">
             <div>
-              <span className="eyebrow">Fresh on the shelves</span>
-              <h2 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", marginTop: ".4rem" }}>Today at the Market</h2>
+              <span className="eyebrow">Locally grown</span>
+              <h2 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", marginTop: ".4rem" }}>Fresh Produce</h2>
             </div>
-            <span className="stamp mono">Inventory synced 7:40 AM · prices per unit</span>
+            <span className="stamp mono">Park Rapids, in the heart of Minnesota</span>
           </div>
           <div className="grid-produce">
-            <div className="prod reveal"><span className="name">Strawberries</span><span className="price">$6.50 / qt</span><span className="avail">Picked daily · plenty</span></div>
-            <div className="prod reveal"><span className="name">Asparagus</span><span className="price">$4.00 / bunch</span><span className="avail low">Only 9 bunches left</span></div>
-            <div className="prod reveal"><span className="name">Strawberry jam</span><span className="price">$8.00 / jar</span><span className="avail">In stock</span></div>
-            <div className="prod reveal"><span className="name">Local whole milk</span><span className="price">$5.00 + deposit</span><span className="avail">In stock</span></div>
-            <div className="prod reveal"><span className="name">Rhubarb</span><span className="price">$3.50 / lb</span><span className="avail">In stock</span></div>
-            <div className="prod reveal"><span className="name">Mushroom popcorn</span><span className="price">$6.00 / bag</span><span className="avail">In stock</span></div>
-            <div className="prod reveal"><span className="name">Honey</span><span className="price">$9.00 / jar</span><span className="avail low">3 jars left</span></div>
-            <div className="prod reveal"><span className="name">Bedding plants</span><span className="price">from $3.00</span><span className="avail">Spring only</span></div>
+            <div className="prod reveal"><span className="name">Asparagus</span><span className="avail">Tender spring shoots · May–June</span></div>
+            <div className="prod reveal"><span className="name">Rhubarb</span><span className="avail">Ruby-red stalks · late May–early July</span></div>
+            <div className="prod reveal"><span className="name">Strawberries</span><span className="avail">U-pick &amp; ready-picked · late June–mid July</span></div>
+            <div className="prod reveal"><span className="name">Summer produce</span><span className="avail">Locally grown fruits &amp; veggies in season</span></div>
           </div>
+          <p className="produce-note reveal">Fresh produce usually begins in mid-to-late May, when the first asparagus pushes up to herald spring — often overlapping with our rhubarb and, by late June, the sweetest big, red, juicy strawberries you&apos;ve ever seen.</p>
         </div>
       </section>
 
-      {/* ===== footer ===== */}
-      <footer className="site">
+      {/* ===== footer / contact ===== */}
+      <footer className="site" id="contact">
         <div className="wrap">
           <div className="foot-grid">
             <div className="foot-brand">
-              <div className="name">Red Wagon Farm</div>
-              <p style={{ marginTop: ".8rem" }}>A Carter family farm just outside Park Rapids, Minnesota. Growing quality fruits and vegetables for our community — the way a farm family should.</p>
-              <div className="news">
-                <input type="email" placeholder="Email for seasonal updates" aria-label="Email" />
-                <button className="btn btn--primary" type="button">Join</button>
-              </div>
+              <div className="name">Carter&apos;s Red Wagon Farm</div>
+              <p style={{ marginTop: ".8rem" }}>A Carter family farm in Park Rapids, Minnesota, growing quality fruits and vegetables for our community. Facebook is always the most up-to-date place for picking conditions and availability.</p>
+              <a className="btn btn--primary fb-btn" href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer">Find us on Facebook</a>
             </div>
             <div>
               <h4>The Farm</h4>
               <ul>
-                <li>Southwest of Park Rapids</li>
-                <li>U-pick · 8am–6pm daily</li>
-                <li>Corn maze &amp; pumpkin parties</li>
+                <li>14766 119th Ave</li>
+                <li>Park Rapids, MN 56470</li>
+                <li>U-pick 7 a.m.–noon · Mon–Sat</li>
+                <li>Closed Sundays</li>
               </ul>
             </div>
             <div>
-              <h4>The Market</h4>
+              <h4>Find our berries</h4>
               <ul>
-                <li>East of Park Rapids</li>
-                <li>Mon–Sat · 9am–6pm</li>
-                <li>Sun · 11am–4pm</li>
+                <li>The Red Barn · Mon–Fri 10–5</li>
+                <li>Park Rapids Market · Sat 9–1</li>
+                <li>Walker Market · Thu 9–2</li>
+                <li>Detroit Lakes Market · Tue &amp; Sat</li>
               </ul>
             </div>
             <div>
-              <h4>Stay in touch</h4>
+              <h4>Contact</h4>
               <ul>
-                <li><a href="#">Facebook (most current!)</a></li>
-                <li><a href="#">hello@redwagonfarm.net</a></li>
-                <li><a href="#">(218) 555-0100</a></li>
+                <li><a href="tel:+12187324979">(218) 732-4979</a></li>
+                <li>Call our answering machine</li>
+                <li>or message us on Facebook</li>
+                <li>Always check before coming out</li>
               </ul>
             </div>
           </div>
           <div className="colophon">
-            <span>© 2026 Red Wagon Farm · Carter Family</span>
+            <span>© 2026 Carter&apos;s Red Wagon Farm · We accept cash, Discover, MasterCard &amp; Visa</span>
             <span className="stafflinks">
-              <Link href="/admin" className="register-link">Reservations →</Link>
               <Link href="/admin/sales" className="register-link">Sales →</Link>
               <Link href="/till" className="register-link">Stand register →</Link>
             </span>
@@ -481,15 +478,17 @@ export default function RedWagonFarm() {
         .upick .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: clamp(28px, 4vw, 56px); align-items: center; }
         .upick .eyebrow { color: #FBE0B6; }
         .upick h2 { color: #fff; font-size: clamp(2rem, 4.4vw, 3.2rem); margin-top: .4rem; }
-        .upick p { color: rgba(255,255,255,.9); margin-top: 1rem; font-size: 1.1rem; max-width: 42ch; }
+        .upick p { color: rgba(255,255,255,.9); margin-top: 1rem; font-size: 1.1rem; max-width: 44ch; }
+        .upick .fineprint { font-size: .92rem; color: rgba(255,255,255,.75); margin-top: 1rem; }
         .booking {
           background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25);
           border-radius: var(--r-lg); padding: 1.4rem;
         }
-        .booking .row { display: flex; justify-content: space-between; align-items: center; padding: .7rem 0; border-top: 1px solid rgba(255,255,255,.16); font-family: var(--data); font-size: .92rem; }
+        .booking .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .7rem 0; border-top: 1px solid rgba(255,255,255,.16); font-family: var(--data); font-size: .92rem; }
         .booking .row:first-of-type { border-top: 0; }
-        .booking .slots { color: #FBE0B6; }
-        .booking .full { color: rgba(255,255,255,.5); text-decoration: line-through; }
+        .booking .row b { color: #FBE0B6; font-weight: 500; text-align: right; }
+        .booking .callnote { font-size: .82rem; line-height: 1.5; color: rgba(255,255,255,.85); margin-top: 1rem; }
+        .booking .callnote a { color: #FBE0B6; text-decoration: underline; }
         .booking .btn { width: 100%; justify-content: center; margin-top: 1.1rem; }
 
         .season { background: var(--pine); color: #F2ECDD; }
@@ -558,10 +557,9 @@ export default function RedWagonFarm() {
           padding: 1.1rem; display: flex; flex-direction: column; gap: .35rem; transition: transform .18s ease;
         }
         .prod:hover { transform: translateY(-3px); }
-        .prod .name { font-weight: 700; }
-        .prod .price { font-family: var(--data); color: var(--wagon-deep); font-weight: 500; }
-        .prod .avail { font-family: var(--data); font-size: .72rem; color: var(--muted); margin-top: auto; }
-        .prod .avail.low { color: var(--wagon); }
+        .prod .name { font-weight: 700; font-size: 1.05rem; }
+        .prod .avail { font-family: var(--data); font-size: .78rem; color: var(--muted); margin-top: auto; }
+        .produce-note { max-width: 60ch; margin-top: 1.6rem; color: var(--muted); font-size: 1rem; line-height: 1.6; }
 
         footer.site { background: var(--ink); color: #E8DECB; padding-block: clamp(48px, 6vw, 80px) 2rem; }
         .foot-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.3fr; gap: 2.2rem; }
@@ -570,9 +568,7 @@ export default function RedWagonFarm() {
         footer.site a:hover { color: #fff; }
         footer.site ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
         .foot-brand .name { font-family: var(--display); font-weight: 900; font-size: 1.5rem; color: #fff; }
-        .news { display: flex; gap: .5rem; margin-top: .9rem; }
-        .news input { flex: 1; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: var(--r-pill); padding: .7em 1.1em; color: #fff; font-family: var(--body); }
-        .news input::placeholder { color: rgba(232,222,203,.5); }
+        .fb-btn { margin-top: 1.1rem; }
         .colophon { border-top: 1px solid rgba(255,255,255,.12); margin-top: 2.5rem; padding-top: 1.5rem; font-family: var(--data); font-size: .74rem; color: rgba(232,222,203,.55); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
         .colophon .stafflinks { display: flex; gap: 1.3rem; flex-wrap: wrap; }
         .colophon .register-link { color: var(--wheat); }

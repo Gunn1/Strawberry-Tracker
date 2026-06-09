@@ -31,9 +31,9 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Red Wagon Farm — Carter Family Farm, Park Rapids MN",
+  title: "Carter's Red Wagon Farm — Park Rapids, MN",
   description:
-    "Pick-your-own strawberries, a market full of our own produce, and pumpkin parties come fall — from the Carter family near Park Rapids, Minnesota.",
+    "Locally grown asparagus, rhubarb, and u-pick & ready-picked strawberries, plus a corn maze and fall fun — from the Carter family in Park Rapids, Minnesota.",
 };
 
 export default function RootLayout({
