@@ -2,11 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Red Wagon Farm — landing page                                       */
 /* ------------------------------------------------------------------ */
+
+const FACEBOOK_URL = "https://www.facebook.com/CartersRedWagonFarm";
+
+// Opens Google Maps directions to the farm.
+const DIRECTIONS_URL =
+  "https://www.google.com/maps/dir/?api=1&destination=14766+119th+Ave+Park+Rapids+MN+56470";
 
 // "From the field" swipe gallery. Drop photos into public/gallery/ named
 // 1.jpg, 2.jpg, … and they appear here; until then each card shows a
@@ -27,6 +33,32 @@ export default function RedWagonFarm() {
   const scrollStrip = (dir: 1 | -1) => {
     const el = stripRef.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
+  };
+
+  // Season-updates signup.
+  const [email, setEmail] = useState("");
+  const [subState, setSubState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [subMsg, setSubMsg] = useState("");
+
+  const subscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subState === "loading") return;
+    setSubState("loading");
+    setSubMsg("");
+    try {
+      const res = await fetch("/api/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "error");
+      setSubState("done");
+      setEmail("");
+    } catch (err) {
+      setSubState("error");
+      setSubMsg(err instanceof Error ? err.message : "Couldn't sign you up. Please try again.");
+    }
   };
 
   // Scroll-reveal: fade sections in as they enter the viewport.
@@ -52,28 +84,21 @@ export default function RedWagonFarm() {
       {/* ===== top utility bar ===== */}
       <div className="topbar">
         <div className="wrap">
-          <div>🍓 <b>Before you come out:</b> call (218) 732-4979 or check Facebook — it&apos;s always the most up to date</div>
-          <div>14766 119th Ave, Park Rapids, MN 56470</div>
+          <div>🍓 U-pick strawberries · late June – mid July</div>
+          <div><a href="tel:+12187324979">(218) 732-4979</a> · Park Rapids, MN</div>
         </div>
       </div>
 
       {/* ===== header ===== */}
       <header className="site">
         <div className="wrap">
-          <a className="brand" href="#">
-            <svg className="mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-              <rect x="8" y="20" width="44" height="20" rx="4" fill="#C5392C" />
-              <rect x="8" y="20" width="44" height="20" rx="4" stroke="#9E2A20" strokeWidth="2" />
-              <path d="M52 28h6" stroke="#271F17" strokeWidth="3" strokeLinecap="round" />
-              <circle cx="20" cy="46" r="6" fill="#271F17" /><circle cx="20" cy="46" r="2.4" fill="#F6EFE2" />
-              <circle cx="42" cy="46" r="6" fill="#271F17" /><circle cx="42" cy="46" r="2.4" fill="#F6EFE2" />
-            </svg>
-            <span className="name">Carter&apos;s Red Wagon Farm<small>Park Rapids, Minnesota</small></span>
+          <a className="brand" href="#" aria-label="Carter's Red Wagon Farm — home">
+            <Image className="mark" src="/Logo.webp" alt="Carter's Red Wagon Farm" width={240} height={147} priority />
           </a>
           <nav className="main">
-            <a href="#produce">Fresh Produce</a>
-            <a href="#upick">U-Pick Strawberries</a>
-            <a href="#fall">Corn Maze</a>
+            <a href="#produce">Produce</a>
+            <a href="#upick">U-Pick</a>
+            <a href="#story">Our Family</a>
             <a href="#contact">Contact</a>
             <a className="btn btn--primary nav-cta" href="tel:+12187324979">Call (218) 732-4979</a>
           </nav>
@@ -87,7 +112,7 @@ export default function RedWagonFarm() {
           <div className="reveal">
             <span className="eyebrow">The Carter family · Park Rapids, Minnesota</span>
             <h1>Picked this morning,<br /><em>on your table</em> tonight.</h1>
-            <p className="lede">Locally grown asparagus, rhubarb, and sweet strawberries — u-pick and ready-picked — plus a corn maze and fall fun, straight from our family to yours.</p>
+            <p className="lede">Locally grown asparagus, rhubarb, and sweet strawberries — u-pick and ready-picked — straight from our family to yours.</p>
             <div className="actions">
               <a className="btn btn--primary" href="#upick">U-Pick strawberries</a>
               <a className="btn btn--ghost" href="tel:+12187324979">Call (218) 732-4979</a>
@@ -178,12 +203,12 @@ export default function RedWagonFarm() {
         </div>
       </section>
 
-      {/* ===== the farm's year + fall fun ===== */}
-      <section className="season" id="fall">
+      {/* ===== the farm's year ===== */}
+      <section className="season" id="season">
         <div className="wrap">
           <div className="sec-head reveal">
             <span className="eyebrow">The farm&apos;s year</span>
-            <h2>Fresh all season — and fall fun to follow.</h2>
+            <h2>A whole season to look forward to.</h2>
             <p>We grow with the calendar, not against it. Here&apos;s roughly when everything comes in. Exact dates depend on the weather, so check Facebook as each season nears.</p>
           </div>
           <div className="timeline">
@@ -206,11 +231,6 @@ export default function RedWagonFarm() {
               <div className="when">Summer</div>
               <h3><svg viewBox="0 0 24 24" fill="#E2A33C"><rect x="9" y="4" width="6" height="16" rx="3" /></svg>Summer produce</h3>
               <p>Locally grown fruits and vegetables in season.</p>
-            </div>
-            <div className="month reveal">
-              <div className="when">Fall</div>
-              <h3><svg viewBox="0 0 24 24" fill="#E2A33C"><circle cx="12" cy="13" r="7" /></svg>Corn maze &amp; fall fun</h3>
-              <p>Wagon rides and the corn maze when the leaves turn.</p>
             </div>
           </div>
         </div>
@@ -289,14 +309,68 @@ export default function RedWagonFarm() {
         </div>
       </section>
 
-      {/* ===== footer / contact ===== */}
-      <footer className="site" id="contact">
+      {/* ===== visit & contact ===== */}
+      <section className="contact" id="contact">
+        <div className="wrap contact-grid">
+          <div className="reveal">
+            <span className="eyebrow">Visit &amp; contact</span>
+            <h2>Come see us in Park Rapids.</h2>
+            <div className="contact-rows">
+              <div className="crow">
+                <span className="ck">Where</span>
+                <span className="cv">14766 119th Ave, Park Rapids, MN 56470</span>
+              </div>
+              <div className="crow">
+                <span className="ck">U-pick hours</span>
+                <span className="cv">7 a.m. – noon · Mon–Sat · closed Sundays</span>
+              </div>
+              <div className="crow">
+                <span className="ck">Phone</span>
+                <span className="cv"><a href="tel:+12187324979">(218) 732-4979</a> — our answering machine</span>
+              </div>
+            </div>
+            <p className="contact-note">Please always call or check Facebook before heading out — we may close for weather, ripening, or once we&apos;re picked out, and Facebook is updated throughout the day.</p>
+            <div className="contact-actions">
+              <a className="btn btn--primary" href={DIRECTIONS_URL} target="_blank" rel="noopener noreferrer">Get directions</a>
+              <a className="btn btn--ghost" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Follow on Facebook</a>
+            </div>
+          </div>
+
+          <div className="signup reveal">
+            <h3>Get a heads-up for berry season</h3>
+            <p>Drop your email and we&apos;ll let you know when u-pick opens and when ready-picked berries are available. For day-to-day updates, Facebook is always the most current.</p>
+            {subState === "done" ? (
+              <div className="sub-done">🍓 You&apos;re on the list — see you in the rows!</div>
+            ) : (
+              <form className="sub-form" onSubmit={subscribe}>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@email.com"
+                  aria-label="Email address"
+                  value={email}
+                  onChange={(ev) => setEmail(ev.target.value)}
+                  disabled={subState === "loading"}
+                />
+                <button className="btn btn--onpine" type="submit" disabled={subState === "loading"}>
+                  {subState === "loading" ? "Signing up…" : "Notify me"}
+                </button>
+              </form>
+            )}
+            {subState === "error" && <p className="sub-err">{subMsg}</p>}
+            <p className="sub-fine">We&apos;ll only email about the season — no spam, and you can unsubscribe anytime.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== footer ===== */}
+      <footer className="site">
         <div className="wrap">
           <div className="foot-grid">
             <div className="foot-brand">
               <div className="name">Carter&apos;s Red Wagon Farm</div>
               <p style={{ marginTop: ".8rem" }}>A Carter family farm in Park Rapids, Minnesota, growing quality fruits and vegetables for our community. Facebook is always the most up-to-date place for picking conditions and availability.</p>
-              <a className="btn btn--primary fb-btn" href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer">Find us on Facebook</a>
+              <a className="btn btn--primary fb-btn" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Find us on Facebook</a>
             </div>
             <div>
               <h4>The Farm</h4>
@@ -314,15 +388,6 @@ export default function RedWagonFarm() {
                 <li>Park Rapids Market · Sat 9–1</li>
                 <li>Walker Market · Thu 9–2</li>
                 <li>Detroit Lakes Market · Tue &amp; Sat</li>
-              </ul>
-            </div>
-            <div>
-              <h4>Contact</h4>
-              <ul>
-                <li><a href="tel:+12187324979">(218) 732-4979</a></li>
-                <li>Call our answering machine</li>
-                <li>or message us on Facebook</li>
-                <li>Always check before coming out</li>
               </ul>
             </div>
           </div>
@@ -388,6 +453,8 @@ export default function RedWagonFarm() {
         }
         .topbar .wrap { display: flex; justify-content: space-between; gap: 1rem; padding-block: .55rem; flex-wrap: wrap; }
         .topbar b { color: var(--wheat); font-weight: 500; }
+        .topbar a { color: inherit; text-decoration: none; }
+        .topbar a:hover { color: var(--wheat); }
 
         header.site {
           position: sticky; top: 0; z-index: 50;
@@ -397,7 +464,7 @@ export default function RedWagonFarm() {
         }
         header.site .wrap { display: flex; align-items: center; justify-content: space-between; padding-block: .85rem; }
         .brand { display: flex; align-items: center; gap: .65rem; }
-        .brand .mark { width: 42px; height: 42px; flex: none; }
+        .brand .mark { width: auto; height: 54px; flex: none; display: block; }
         .brand .name { font-family: var(--display); font-weight: 900; font-size: 1.32rem; letter-spacing: -.02em; line-height: 1; }
         .brand .name small { display: block; font-family: var(--data); font-weight: 400; font-size: .56rem; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
         nav.main { display: flex; align-items: center; gap: 1.7rem; }
@@ -495,7 +562,7 @@ export default function RedWagonFarm() {
         .season .sec-head h2 { color: #fff; }
         .season .sec-head p { color: rgba(242,236,221,.7); }
         .season .eyebrow { color: var(--wheat); }
-        .timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: rgba(242,236,221,.14); border: 1px solid rgba(242,236,221,.14); border-radius: var(--r-md); overflow: hidden; margin-top: 1.5rem; }
+        .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(242,236,221,.14); border: 1px solid rgba(242,236,221,.14); border-radius: var(--r-md); overflow: hidden; margin-top: 1.5rem; }
         .month { background: var(--pine); padding: 1.4rem 1.1rem; }
         .month .when { font-family: var(--data); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--wheat); }
         .month h3 { font-size: 1.15rem; color: #fff; margin-top: .55rem; display: flex; align-items: center; gap: .5rem; }
@@ -561,8 +628,33 @@ export default function RedWagonFarm() {
         .prod .avail { font-family: var(--data); font-size: .78rem; color: var(--muted); margin-top: auto; }
         .produce-note { max-width: 60ch; margin-top: 1.6rem; color: var(--muted); font-size: 1rem; line-height: 1.6; }
 
+        /* ===== visit & contact ===== */
+        .contact-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(28px, 4vw, 56px); align-items: start; }
+        .contact h2 { font-size: clamp(1.9rem, 4vw, 2.8rem); margin-top: .4rem; }
+        .contact-rows { margin-top: 1.6rem; display: grid; gap: 0; }
+        .crow { display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem; padding: .85rem 0; border-top: 1px solid var(--line); }
+        .crow:first-child { border-top: 0; }
+        .ck { font-family: var(--data); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--wagon-deep); padding-top: .15rem; }
+        .cv { font-size: 1.02rem; }
+        .cv a { color: var(--wagon); text-decoration: none; }
+        .cv a:hover { text-decoration: underline; }
+        .contact-note { color: var(--muted); margin-top: 1.2rem; line-height: 1.6; max-width: 50ch; }
+        .contact-actions { display: flex; gap: .7rem; flex-wrap: wrap; margin-top: 1.6rem; }
+
+        .signup { background: var(--pine); color: #F2ECDD; border-radius: var(--r-lg); padding: clamp(22px, 3vw, 32px); box-shadow: var(--shadow-lg); }
+        .signup h3 { font-family: var(--display); font-weight: 600; font-size: 1.5rem; color: #fff; }
+        .signup p { margin-top: .8rem; color: rgba(242,236,221,.82); line-height: 1.55; }
+        .sub-form { display: flex; gap: .5rem; margin-top: 1.3rem; flex-wrap: wrap; }
+        .sub-form input { flex: 1; min-width: 0; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.28); border-radius: var(--r-pill); padding: .8em 1.2em; color: #fff; font-family: var(--body); font-size: 1rem; }
+        .sub-form input::placeholder { color: rgba(242,236,221,.55); }
+        .sub-form input:focus { outline: none; border-color: var(--wheat); }
+        .sub-form .btn { flex: none; }
+        .sub-done { margin-top: 1.3rem; font-family: var(--display); font-size: 1.1rem; color: var(--wheat); }
+        .sub-err { margin-top: .7rem; color: #FBC8B6; font-size: .9rem; }
+        .sub-fine { margin-top: .9rem; font-family: var(--data); font-size: .72rem; color: rgba(242,236,221,.6); }
+
         footer.site { background: var(--ink); color: #E8DECB; padding-block: clamp(48px, 6vw, 80px) 2rem; }
-        .foot-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.3fr; gap: 2.2rem; }
+        .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 2.2rem; }
         footer.site h4 { font-family: var(--data); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--wheat); margin: 0 0 1rem; }
         footer.site a, footer.site p { color: rgba(232,222,203,.8); font-size: .95rem; }
         footer.site a:hover { color: #fff; }
@@ -579,7 +671,7 @@ export default function RedWagonFarm() {
         @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
 
         @media (max-width: 920px) {
-          .hero-grid, .upick .grid, .story .grid { grid-template-columns: 1fr; }
+          .hero-grid, .upick .grid, .story .grid, .contact-grid { grid-template-columns: 1fr; }
           .places, .grid-produce { grid-template-columns: 1fr 1fr; }
           .timeline { grid-template-columns: 1fr 1fr; }
           .foot-grid { grid-template-columns: 1fr 1fr; }

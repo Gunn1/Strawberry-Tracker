@@ -151,3 +151,10 @@ model Reservation {
   @@index([slotId])
 }
 
+// Folks who want a heads-up when strawberry season opens.
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
