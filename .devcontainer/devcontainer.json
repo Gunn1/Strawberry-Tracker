@@ -1,0 +1,10 @@
+{
+
+"image": "mcr.microsoft.com/devcontainers/typescript-node",
+"features": {
+    "ghcr.io/devcontainers-extra/features/claude-code:2.0.0": {},
+    "ghcr.io/itsmechlark/features/postgresql:1": {}
+},
+"forwardPorts": [3000],
+"appPort": ["3000:3000"]
+}

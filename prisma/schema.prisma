@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  sales Sale[]
+  // Optional for WebAuthn support
+  Authenticator Authenticator[]
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([provider, providerAccountId])
+}
+ 
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+ 
+  @@id([identifier, token])
+}
+ 
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([userId, credentialID])
+}
+
+enum SaleMode {
+  QUART      // strawberries, by the quart
+  ASPARAGUS  // by the pound
+  RHUBARB    // by the pound
+}
+
+// Singleton row of stand prices. The API always reads/writes id = "default".
+model StandSettings {
+  id             String @id @default("default")
+  quartCents     Int    @default(500) // strawberries, per quart
+  asparagusCents Int    @default(350) // per pound
+  rhubarbCents   Int    @default(300) // per pound
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sale {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+
+  mode           SaleMode
+  quantity       Int      // # of quarts (strawberries) or pounds (asparagus / rhubarb)
+  unitPriceCents Int      // price per unit AT TIME OF SALE
+  totalCents     Int      // quantity * unitPriceCents
+  tenderedCents  Int      // cash received
+  changeCents    Int      // tenderedCents - totalCents
+
+  cashierId      String?
+  cashier        User?    @relation(fields: [cashierId], references: [id])
+
+  @@index([createdAt])
+  @@index([cashierId])
+}
+
+// A bookable U-pick window on a given day. Times are wall-clock minutes from
+// midnight (no timezone math) so an "8:00–9:30 AM" slot always reads the same.
+model Slot {
+  id       String   @id @default(cuid())
+  date     DateTime @db.Date // the picking day
+  startMin Int               // window start, minutes from midnight (480 = 8:00 AM)
+  endMin   Int               // window end, minutes from midnight
+  capacity Int      @default(20) // max pickers allowed in the window
+
+  reservations Reservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, startMin])
+  @@index([date])
+}
+
+model Reservation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  slotId    String
+  slot      Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  name      String
+  email     String
+  partySize Int // number of pickers in this booking
+
+  @@index([slotId])
+}
+

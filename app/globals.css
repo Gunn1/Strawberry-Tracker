@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* Red Wagon Farm design tokens (shared across the marketing + booking pages) */
+  --paper:      #F6EFE2;
+  --paper-2:    #FCF8F0;
+  --ink:        #271F17;
+  --muted:      #6F6354;
+  --line:       #E4D8C2;
+  --pine:       #1E3A2B;
+  --pine-2:     #2C4F3B;
+  --wagon:      #C5392C;
+  --wagon-deep: #9E2A20;
+  --wheat:      #E2A33C;
+  --sage:       #8FA06A;
+
+  --display: var(--font-fraunces), Georgia, serif;
+  --body:    var(--font-dm-sans), system-ui, sans-serif;
+  --data:    var(--font-dm-mono), ui-monospace, monospace;
+
+  --r-sm: 8px;  --r-md: 16px;  --r-lg: 28px;  --r-pill: 999px;
+  --shadow: 0 1px 2px rgba(39,31,23,.05), 0 12px 30px -16px rgba(39,31,23,.22);
+  --shadow-lg: 0 30px 60px -28px rgba(30,58,43,.45);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
