@@ -2,13 +2,33 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Red Wagon Farm — landing page                                       */
 /* ------------------------------------------------------------------ */
 
+// "From the field" swipe gallery. Drop photos into public/gallery/ named
+// 1.jpg, 2.jpg, … and they appear here; until then each card shows a
+// strawberry placeholder. Edit the captions (or add/remove rows) freely.
+const GALLERY: { src: string; caption: string }[] = [
+  { src: "/gallery/1.jpg", caption: "Just-picked in the field" },
+  { src: "/gallery/2.jpg", caption: "Down the rows" },
+  { src: "/gallery/3.jpg", caption: "Quarts ready to go" },
+  { src: "/gallery/4.jpg", caption: "A morning at the farm" },
+  { src: "/gallery/5.jpg", caption: "The red wagon" },
+  { src: "/gallery/6.jpg", caption: "Sunset over the rows" },
+];
+
 export default function RedWagonFarm() {
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  // Scroll the gallery strip by ~one viewport of cards.
+  const scrollStrip = (dir: 1 | -1) => {
+    const el = stripRef.current;
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
+  };
+
   // Scroll-reveal: fade sections in as they enter the viewport.
   useEffect(() => {
     const els = document.querySelectorAll(".reveal");
@@ -75,43 +95,20 @@ export default function RedWagonFarm() {
             <p className="sign">&ldquo;Stewards of the soil we&apos;ve been entrusted with.&rdquo;</p>
           </div>
 
-          <div className="board reveal" aria-label="What's ready now at Red Wagon Farm">
-            <h2>🪧 What&apos;s ready now</h2>
-            <div className="updated mono">Updated today · 7:40 AM</div>
-            <ul>
-              <li>
-                <span className="dot dot--now" title="Now picking"></span>
-                <span className="crop">Strawberries<small>U-pick at the Farm</small></span>
-                <span className="qty">142 flats<span>picked today</span></span>
-              </li>
-              <li>
-                <span className="dot dot--market" title="At the market"></span>
-                <span className="crop">Asparagus<small>Fresh at the Market</small></span>
-                <span className="qty">38 lbs<span>in stock</span></span>
-              </li>
-              <li>
-                <span className="dot dot--market" title="At the market"></span>
-                <span className="crop">Rhubarb &amp; jams<small>Market shelves</small></span>
-                <span className="qty">stocked<span>daily</span></span>
-              </li>
-              <li>
-                <span className="dot dot--soon" title="Coming soon"></span>
-                <span className="crop">Sweet corn (non-GMO)<small>Coming mid-July</small></span>
-                <span className="qty">~3 wks<span>to harvest</span></span>
-              </li>
-              <li>
-                <span className="dot dot--done" title="Season finished"></span>
-                <span className="crop">Apples &amp; cider<small>Returns September</small></span>
-                <span className="qty">fall<span>season</span></span>
-              </li>
-            </ul>
-            <div className="legend">
-              <span><i style={{ background: "#C5392C" }}></i>Now picking</span>
-              <span><i style={{ background: "#8FA06A" }}></i>At the market</span>
-              <span><i style={{ background: "#E2A33C" }}></i>Coming soon</span>
-              <span><i style={{ background: "#6c6c66" }}></i>Done</span>
+          {/* Hero photo. Drop a real image at public/hero.jpg and it shows
+              here automatically; until then the strawberry illustration below
+              shows through as a tasteful placeholder. */}
+          <figure className="hero-photo reveal">
+            <div className="ph-fallback" aria-hidden="true">
+              <svg viewBox="0 0 64 64" fill="none">
+                <path d="M32 12c-4-5-12-5-15 0 5-1 9 1 11 4-3-1-7 0-9 3 9-3 13 3 13 3s4-6 13-3c-2-3-6-4-9-3 2-3 6-5 11-4-3-5-11-5-15 0z" fill="#F2ECDD" opacity="0.85" />
+                <path d="M16 26c0 12 8 24 16 26 8-2 16-14 16-26 0 0-7 5-16 5s-16-5-16-5z" fill="#F2ECDD" opacity="0.85" />
+                <g fill="#2C4F3B"><circle cx="24" cy="33" r="1.4" /><circle cx="32" cy="31" r="1.4" /><circle cx="40" cy="33" r="1.4" /><circle cx="28" cy="40" r="1.4" /><circle cx="36" cy="40" r="1.4" /><circle cx="32" cy="47" r="1.4" /></g>
+              </svg>
             </div>
-          </div>
+            <div className="ph-img" style={{ backgroundImage: "url(/hero.jpg)" }} />
+            <figcaption>🍓 Picked fresh at the Farm</figcaption>
+          </figure>
         </div>
       </section>
 
@@ -235,6 +232,39 @@ export default function RedWagonFarm() {
             <blockquote>We grow our fruits and vegetables to provide for your family in a special way — <span>knowing you&apos;re buying directly from ours.</span></blockquote>
             <p className="who"><b>The Carter Family</b> · Stewards of this soil since 1986</p>
           </div>
+        </div>
+      </section>
+
+      {/* ===== from the field — swipe gallery ===== */}
+      <section className="gallery">
+        <div className="wrap ghead reveal">
+          <div>
+            <span className="eyebrow">Around the farm</span>
+            <h2>From the field</h2>
+          </div>
+          <div className="arrows">
+            <button onClick={() => scrollStrip(-1)} aria-label="Previous photos">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+            <button onClick={() => scrollStrip(1)} aria-label="More photos">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="strip" ref={stripRef}>
+          {GALLERY.map((g, i) => (
+            <figure className="gcard" key={i}>
+              <div className="gph-fallback" aria-hidden="true">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path d="M32 12c-4-5-12-5-15 0 5-1 9 1 11 4-3-1-7 0-9 3 9-3 13 3 13 3s4-6 13-3c-2-3-6-4-9-3 2-3 6-5 11-4-3-5-11-5-15 0z" fill="#F2ECDD" opacity="0.8" />
+                  <path d="M16 26c0 12 8 24 16 26 8-2 16-14 16-26 0 0-7 5-16 5s-16-5-16-5z" fill="#F2ECDD" opacity="0.8" />
+                </svg>
+              </div>
+              <div className="gph" style={{ backgroundImage: `url(${g.src})` }} />
+              <figcaption>{g.caption}</figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
@@ -389,36 +419,38 @@ export default function RedWagonFarm() {
         .hero .actions { margin-top: 2rem; display: flex; gap: .8rem; flex-wrap: wrap; }
         .hero .sign { margin-top: 1.7rem; font-family: var(--display); font-style: italic; font-size: 1.05rem; color: var(--pine-2); }
 
-        .board {
-          background: var(--pine);
-          color: #F2ECDD;
-          border-radius: var(--r-lg);
-          padding: 1.5rem 1.5rem 1.2rem;
-          box-shadow: var(--shadow-lg);
+        .hero-photo {
           position: relative;
+          margin: 0;
+          aspect-ratio: 4 / 3;
+          border-radius: var(--r-lg);
           overflow: hidden;
+          box-shadow: var(--shadow-lg);
+          background: linear-gradient(160deg, var(--sage), var(--pine-2));
         }
-        .board::before {
-          content: ""; position: absolute; inset: 10px; border: 1px solid rgba(226,163,60,.28); border-radius: calc(var(--r-lg) - 10px); pointer-events: none;
+        /* strawberry illustration shown until a real photo is added */
+        .ph-fallback {
+          position: absolute; inset: 0; display: grid; place-items: center;
         }
-        .board h2 { font-size: 1.18rem; color: #fff; display: flex; align-items: center; gap: .5rem; }
-        .board .updated { font-family: var(--data); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--wheat); margin-top: .25rem; }
-        .board ul { list-style: none; margin: 1.1rem 0 0; padding: 0; }
-        .board li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .8rem; padding: .72rem 0; border-top: 1px solid rgba(242,236,221,.12); }
-        .board li:first-child { border-top: 0; }
-        .board .crop { font-weight: 700; font-family: var(--body); font-size: 1.02rem; }
-        .board .crop small { display: block; font-weight: 400; font-size: .76rem; color: rgba(242,236,221,.6); }
-        .board .qty { font-family: var(--data); font-size: .82rem; text-align: right; color: var(--wheat); white-space: nowrap; }
-        .board .qty span { display: block; font-size: .64rem; color: rgba(242,236,221,.55); letter-spacing: .06em; }
-        .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
-        .dot--now { background: var(--wagon); box-shadow: 0 0 0 0 rgba(197,57,44,.6); animation: pulse 2.2s infinite; }
-        .dot--market { background: var(--sage); }
-        .dot--soon { background: var(--wheat); }
-        .dot--done { background: #6c6c66; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(197,57,44,.55);} 70%{ box-shadow: 0 0 0 9px rgba(197,57,44,0);} 100%{ box-shadow:0 0 0 0 rgba(197,57,44,0);} }
-        @media (prefers-reduced-motion: reduce) { .dot--now { animation: none; } }
-        .board .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; font-family: var(--data); font-size: .64rem; letter-spacing: .06em; text-transform: uppercase; color: rgba(242,236,221,.7); }
-        .board .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+        .ph-fallback svg { width: 38%; max-width: 150px; opacity: .9; }
+        /* the photo itself — covers the fallback when public/hero.jpg exists */
+        .ph-img {
+          position: absolute; inset: 0;
+          background-position: center; background-size: cover; background-repeat: no-repeat;
+        }
+        .hero-photo::after {
+          content: ""; position: absolute; inset: 0; pointer-events: none;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+          border-radius: var(--r-lg);
+          background: linear-gradient(to top, rgba(39,31,23,.28), rgba(39,31,23,0) 34%);
+        }
+        .hero-photo figcaption {
+          position: absolute; left: 14px; bottom: 14px; z-index: 1;
+          font-family: var(--data); font-size: .78rem; font-weight: 500; color: var(--ink);
+          background: color-mix(in srgb, var(--paper) 92%, transparent);
+          border: 1px solid var(--line); border-radius: var(--r-pill);
+          padding: .45em .9em;
+        }
 
         section { padding-block: clamp(56px, 8vw, 110px); }
         .sec-head { max-width: 52ch; margin-bottom: clamp(28px, 4vw, 52px); }
@@ -479,6 +511,44 @@ export default function RedWagonFarm() {
         .story blockquote span { color: var(--wagon); font-style: italic; }
         .story .who { margin-top: 1.4rem; font-family: var(--data); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
         .story .who b { color: var(--ink); }
+
+        /* from-the-field swipe gallery */
+        .gallery { overflow: hidden; }
+        .ghead { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: clamp(20px, 3vw, 32px); }
+        .ghead h2 { font-size: clamp(1.9rem, 4vw, 3rem); margin-top: .4rem; }
+        .arrows { display: flex; gap: .5rem; flex: none; }
+        .arrows button {
+          width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+          background: var(--paper-2); border: 1.5px solid var(--line); color: var(--ink);
+          display: grid; place-items: center; transition: border-color .15s ease, background .15s ease, transform .1s ease;
+        }
+        .arrows button:hover { border-color: var(--wagon); color: var(--wagon); }
+        .arrows button:active { transform: scale(.92); }
+
+        .strip {
+          display: flex; gap: clamp(12px, 2vw, 20px);
+          overflow-x: auto; scroll-snap-type: x mandatory;
+          padding-inline: var(--gut); scroll-padding-inline: var(--gut);
+          padding-bottom: 8px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .strip::-webkit-scrollbar { display: none; }
+        .gcard {
+          position: relative; flex: 0 0 auto; margin: 0;
+          width: clamp(252px, 78vw, 380px); aspect-ratio: 4 / 3;
+          border-radius: var(--r-lg); overflow: hidden; scroll-snap-align: start;
+          box-shadow: var(--shadow); background: linear-gradient(160deg, var(--sage), var(--pine-2));
+        }
+        .gph-fallback { position: absolute; inset: 0; display: grid; place-items: center; }
+        .gph-fallback svg { width: 34%; max-width: 110px; }
+        .gph { position: absolute; inset: 0; background-position: center; background-size: cover; background-repeat: no-repeat; }
+        .gcard figcaption {
+          position: absolute; left: 12px; bottom: 12px; z-index: 1;
+          font-family: var(--data); font-size: .74rem; font-weight: 500; color: var(--ink);
+          background: color-mix(in srgb, var(--paper) 92%, transparent);
+          border: 1px solid var(--line); border-radius: var(--r-pill); padding: .4em .85em;
+        }
 
         .today .head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
         .today .stamp { font-family: var(--data); font-size: .74rem; color: var(--muted); }
