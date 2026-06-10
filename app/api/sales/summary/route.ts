@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 import { authOptions } from "@/lib/auth";
 
 type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
@@ -22,6 +22,7 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const prisma = getPrisma();
 
   const range = new URL(req.url).searchParams.get("range") ?? "today";
 

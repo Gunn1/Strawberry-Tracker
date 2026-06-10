@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 import { authOptions } from "@/lib/auth";
 import { effectiveStatus, fmtClock, fmtDays, farmNow, parseDays } from "@/lib/hours";
 
@@ -9,6 +9,7 @@ const OVERRIDES = ["", "open", "closed", "pickedout"];
 // GET /api/status -> the effective status customers see, the display hours, and
 // the raw schedule config (for the admin).
 export async function GET() {
+  const prisma = getPrisma();
   try {
     const s = await prisma.standSettings.upsert({
       where: { id: "default" },
@@ -49,6 +50,7 @@ function clampMin(v: unknown): number | null {
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const prisma = getPrisma();
 
   let body: Record<string, unknown>;
   try {

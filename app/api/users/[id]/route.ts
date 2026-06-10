@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -14,6 +14,7 @@ async function requireAdmin() {
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const guard = await requireAdmin();
   if (guard.error) return guard.error;
+  const prisma = getPrisma();
   const { id } = await ctx.params;
 
   let body: { role?: string; active?: boolean };
@@ -51,6 +52,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   if (guard.session.user?.id === id) {
     return NextResponse.json({ error: "You can't remove your own account." }, { status: 400 });
   }
+  const prisma = getPrisma();
 
   try {
     await prisma.user.delete({ where: { id } });

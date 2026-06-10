@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -51,6 +51,7 @@ export async function POST(req: Request) {
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   }
+  const prisma = getPrisma();
 
   try {
     // Always keep our own copy (a backup, and works even before MailerLite is on).

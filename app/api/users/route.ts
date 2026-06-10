@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,6 +16,7 @@ async function requireAdmin() {
 export async function GET() {
   const { error } = await requireAdmin();
   if (error) return error;
+  const prisma = getPrisma();
   const users = await prisma.user.findMany({
     orderBy: [{ active: "desc" }, { createdAt: "asc" }],
     select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
@@ -27,6 +28,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const { error } = await requireAdmin();
   if (error) return error;
+  const prisma = getPrisma();
 
   let body: { email?: string; role?: string };
   try {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 
 type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
 
@@ -21,6 +21,7 @@ function startOfToday(): Date {
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const prisma = getPrisma();
   try {
     const sales = await prisma.sale.findMany({
       where: { createdAt: { gte: startOfToday() } },
@@ -37,6 +38,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const prisma = getPrisma();
 
   let body: { mode?: SaleMode; quantity?: number; tenderedCents?: number };
   try {

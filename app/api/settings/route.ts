@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/prisma";
+import { getPrisma } from "@/prisma";
 
 // GET /api/settings -> the singleton settings row (created with defaults if missing)
 export async function GET() {
+  const prisma = getPrisma();
   try {
     const settings = await prisma.standSettings.upsert({
       where: { id: "default" },
@@ -30,6 +31,7 @@ export async function PUT(req: Request) {
   if (session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = getPrisma();
 
   let body: { quartCents?: number; asparagusCents?: number; rhubarbCents?: number };
   try {
