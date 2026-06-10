@@ -133,6 +133,11 @@ export default function StrawberryRegister() {
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string>("");
+  // Change-due confirmation shown after a sale where the customer is owed change.
+  const [receipt, setReceipt] = useState<
+    | null
+    | { changeCents: number; breakdown: { count: number; label: string }[]; qty: number; product: string; totalCents: number }
+  >(null);
 
   /* ---------- initial load ---------- */
   useEffect(() => {
@@ -175,6 +180,16 @@ export default function StrawberryRegister() {
     const t = setTimeout(() => setToast(""), 1900);
     return () => clearTimeout(t);
   }, [toast]);
+
+  /* ---------- Esc closes the change popup ---------- */
+  useEffect(() => {
+    if (!receipt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setReceipt(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [receipt]);
 
   /* ---------- derived values ---------- */
   const cashierName = cashier.name?.trim().split(/\s+/)[0] || cashier.email || "Cashier";
@@ -246,7 +261,17 @@ export default function StrawberryRegister() {
       setSales((prev) => [created, ...prev]);
       setQty(1);
       setCash("");
-      setToast("Sale logged ✔");
+      if (created.changeCents > 0) {
+        setReceipt({
+          changeCents: created.changeCents,
+          breakdown: makeChange(created.changeCents),
+          qty: created.quantity,
+          product: productFor(created.mode).label,
+          totalCents: created.totalCents,
+        });
+      } else {
+        setToast("Sale logged ✔");
+      }
     } catch {
       setError("Sale didn't save — check your connection and try again.");
     } finally {
@@ -489,6 +514,26 @@ export default function StrawberryRegister() {
         </div>
       </div>
 
+      {receipt && (
+        <div className="modal-overlay" onClick={() => setReceipt(null)}>
+          <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="m-check" aria-hidden="true">✓</div>
+            <div className="m-title">Sale logged</div>
+            <div className="m-sub">{receipt.qty} &times; {receipt.product} · {fmt(receipt.totalCents)}</div>
+            <div className="m-changelabel">Change to give</div>
+            <div className="m-change">{fmt(receipt.changeCents)}</div>
+            {receipt.breakdown.length > 0 && (
+              <div className="m-bd">
+                {receipt.breakdown.map((b) => (
+                  <span key={b.label}>{b.count} &times; {b.label}</span>
+                ))}
+              </div>
+            )}
+            <button className="m-done" onClick={() => setReceipt(null)} autoFocus>Done</button>
+          </div>
+        </div>
+      )}
+
       {toast && <div className="toast">{toast}</div>}
 
       <style jsx>{`
@@ -628,6 +673,20 @@ export default function StrawberryRegister() {
         .hint { font-size: 12px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
 
         .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; padding: 13px 20px; border-radius: 13px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); z-index: 50; font-family: "Bricolage Grotesque", sans-serif; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(43, 21, 24, 0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 60; }
+        .modal { background: var(--paper); border-radius: 22px; padding: 28px 24px 22px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); animation: pop 0.15s ease-out; }
+        @keyframes pop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .m-check { width: 48px; height: 48px; margin: 0 auto 10px; border-radius: 50%; background: #e7f1e3; color: var(--leaf-deep); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; }
+        .m-title { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 18px; }
+        .m-sub { font-size: 13px; color: var(--muted); margin-top: 3px; font-family: "Space Mono", monospace; }
+        .m-changelabel { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--leaf-deep); margin-top: 18px; }
+        .m-change { font-family: "Space Mono", monospace; font-weight: 700; font-size: 52px; line-height: 1.05; color: var(--leaf-deep); font-variant-numeric: tabular-nums; }
+        .m-bd { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+        .m-bd span { font-family: "Space Mono", monospace; font-size: 12.5px; font-weight: 700; background: #fff; border: 1.5px solid #d8ead2; color: var(--leaf-deep); padding: 5px 9px; border-radius: 8px; }
+        .m-done { width: 100%; margin-top: 22px; font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 17px; padding: 15px; border: none; border-radius: 15px; background: var(--leaf); color: #fff; cursor: pointer; transition: background 0.15s, transform 0.08s; }
+        .m-done:hover { background: var(--leaf-deep); }
+        .m-done:active { transform: scale(0.985); }
       `}</style>
     </div>
   );
