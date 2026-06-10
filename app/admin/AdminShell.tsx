@@ -22,7 +22,12 @@ export default function AdminShell({
 
   const tabs = [
     { href: "/admin", label: "Status" },
-    ...(isAdmin ? [{ href: "/admin/sales", label: "Sales" }] : []),
+    ...(isAdmin
+      ? [
+          { href: "/admin/sales", label: "Sales" },
+          { href: "/admin/transactions", label: "Transactions" },
+        ]
+      : []),
     { href: "/till", label: "Till" },
     ...(isAdmin
       ? [
