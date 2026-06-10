@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 /* ------------------------------------------------------------------ */
@@ -124,11 +125,6 @@ export default function StrawberryRegister() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string>("");
 
-  const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [draftQuart, setDraftQuart] = useState<string>("");
-  const [draftAsparagus, setDraftAsparagus] = useState<string>("");
-  const [draftRhubarb, setDraftRhubarb] = useState<string>("");
-
   /* ---------- initial load ---------- */
   useEffect(() => {
     let active = true;
@@ -252,33 +248,6 @@ export default function StrawberryRegister() {
     }
   }, []);
 
-  const openSettings = () => {
-    setDraftQuart((settings.quartCents / 100).toFixed(2));
-    setDraftAsparagus((settings.asparagusCents / 100).toFixed(2));
-    setDraftRhubarb((settings.rhubarbCents / 100).toFixed(2));
-    setShowSettings((v) => !v);
-  };
-
-  const saveSettings = useCallback(async () => {
-    const next: Settings = {
-      quartCents: Math.max(0, toCents(draftQuart)),
-      asparagusCents: Math.max(0, toCents(draftAsparagus)),
-      rhubarbCents: Math.max(0, toCents(draftRhubarb)),
-    };
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      if (!res.ok) throw new Error("save failed");
-      setSettings(next);
-      setShowSettings(false);
-      setToast("Prices saved");
-    } catch {
-      setError("Couldn't save prices.");
-    }
-  }, [draftQuart, draftAsparagus, draftRhubarb]);
 
   /* ---------- render ---------- */
   const unitWord = product.unit; // "quart" or "pound"
@@ -307,45 +276,14 @@ export default function StrawberryRegister() {
           <h1>Strawberry Stand</h1>
           <p>Ring up a sale &amp; make change</p>
         </div>
-        <button className="gear" onClick={openSettings} aria-label="Prices">
+        <Link className="gear" href="/admin" aria-label="Admin dashboard" title="Admin dashboard">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+            <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
-        </button>
+        </Link>
       </header>
 
       {error && <div className="banner">{error}</div>}
-
-      {/* Settings */}
-      {showSettings && (
-        <div className="card">
-          <h2>Prices</h2>
-          <div className="setrow">
-            <label htmlFor="pq">Strawberries / quart</label>
-            <div className="field">
-              <span className="pfx">$</span>
-              <input id="pq" type="number" inputMode="decimal" step="0.25" min="0" value={draftQuart} onChange={(e) => setDraftQuart(e.target.value)} />
-            </div>
-          </div>
-          <div className="setrow">
-            <label htmlFor="pa">Asparagus / pound</label>
-            <div className="field">
-              <span className="pfx">$</span>
-              <input id="pa" type="number" inputMode="decimal" step="0.25" min="0" value={draftAsparagus} onChange={(e) => setDraftAsparagus(e.target.value)} />
-            </div>
-          </div>
-          <div className="setrow">
-            <label htmlFor="pr">Rhubarb / pound</label>
-            <div className="field">
-              <span className="pfx">$</span>
-              <input id="pr" type="number" inputMode="decimal" step="0.25" min="0" value={draftRhubarb} onChange={(e) => setDraftRhubarb(e.target.value)} />
-            </div>
-          </div>
-          <button className="save" onClick={saveSettings}>Save prices</button>
-          <p className="hint">Asparagus and rhubarb are sold by the pound; strawberries by the quart.</p>
-        </div>
-      )}
 
       {/* Register */}
       <div className="card">

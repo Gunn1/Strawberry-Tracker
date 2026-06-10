@@ -21,11 +21,14 @@ export async function GET() {
   }
 }
 
-// PUT /api/settings -> update prices (require a signed-in user)
+// PUT /api/settings -> update prices (admins only)
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let body: { quartCents?: number; asparagusCents?: number; rhubarbCents?: number };

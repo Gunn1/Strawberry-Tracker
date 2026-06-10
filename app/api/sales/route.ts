@@ -19,6 +19,8 @@ function startOfToday(): Date {
 
 // GET /api/sales -> today's sales, newest first
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const sales = await prisma.sale.findMany({
       where: { createdAt: { gte: startOfToday() } },
@@ -34,6 +36,7 @@ export async function GET() {
 // the saved prices so a tampered client payload can't change what's recorded.
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { mode?: SaleMode; quantity?: number; tenderedCents?: number };
   try {

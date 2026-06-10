@@ -80,13 +80,6 @@ export default function SalesReportPage() {
   return (
     <div className="report">
       <div className="shell">
-        <Link href="/" className="back">← Carter&apos;s Red Wagon Farm</Link>
-
-        <nav className="tabs">
-          <Link href="/admin">Today&apos;s status</Link>
-          <Link href="/admin/sales" className="on">Till &amp; Sales</Link>
-        </nav>
-
         <header className="head">
           <div>
             <span className="eyebrow">Staff · Till</span>
@@ -173,7 +166,6 @@ export default function SalesReportPage() {
 
       <style jsx>{`
         .report {
-          min-height: 100vh;
           background: var(--paper);
           color: var(--ink);
           font-family: var(--body);
@@ -193,6 +185,8 @@ export default function SalesReportPage() {
         }
         .tabs a:hover { color: var(--ink); }
         .tabs a.on { color: var(--wagon-deep); background: #fff; border-color: var(--line); }
+        .tabs .signout { margin-left: auto; font-family: var(--body); font-weight: 700; font-size: .88rem; color: var(--muted); background: none; border: 1.5px solid transparent; padding: .5em 1em; border-radius: var(--r-pill); cursor: pointer; }
+        .tabs .signout:hover { color: var(--wagon-deep); }
 
         .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
         .eyebrow { font-family: var(--data); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--wagon-deep); }

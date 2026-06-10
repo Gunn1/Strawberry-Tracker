@@ -16,7 +16,7 @@ const DIRECTIONS_URL =
 
 // Main nav links — shared by the desktop bar and the mobile menu.
 const NAV: { href: string; label: string }[] = [
-  { href: "#upick", label: "U-Pick" },
+  { href: "#places", label: "U-Pick" },
   { href: "#season", label: "In Season" },
   { href: "#story", label: "Our Family" },
   { href: "#contact", label: "Contact" },

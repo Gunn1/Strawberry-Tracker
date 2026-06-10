@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/prisma";
+import { authOptions } from "@/lib/auth";
 import { effectiveStatus, fmtClock, fmtDays, farmNow, parseDays } from "@/lib/hours";
 
 const OVERRIDES = ["", "open", "closed", "pickedout"];
@@ -45,6 +47,9 @@ function clampMin(v: unknown): number | null {
 // PUT /api/status -> staff update the schedule/season and/or today's override.
 // Only fields present in the body change.
 export async function PUT(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

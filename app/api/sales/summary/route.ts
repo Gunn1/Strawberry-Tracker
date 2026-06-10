@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/prisma";
+import { authOptions } from "@/lib/auth";
 
 type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
 
@@ -17,6 +19,10 @@ function dayKey(d: Date): string {
 // GET /api/sales/summary?range=today|7d|30d|all
 // Aggregated till numbers for the staff sales report.
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const range = new URL(req.url).searchParams.get("range") ?? "today";
 
   let since: Date | null;

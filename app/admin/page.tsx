@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { effectiveStatus, farmNow, fmtClock, fmtDays } from "@/lib/hours";
 
@@ -131,13 +130,6 @@ export default function AdminStatusPage() {
   return (
     <div className="admin">
       <div className="shell">
-        <Link href="/" className="back">← Carter&apos;s Red Wagon Farm</Link>
-
-        <nav className="tabs">
-          <Link href="/admin" className="on">Today&apos;s status</Link>
-          <Link href="/admin/sales">Till &amp; Sales</Link>
-        </nav>
-
         <header className="head">
           <div>
             <span className="eyebrow">Staff</span>
@@ -255,7 +247,7 @@ export default function AdminStatusPage() {
       {toast && <div className="toast">{toast}</div>}
 
       <style jsx>{`
-        .admin { min-height: 100vh; background: var(--paper); color: var(--ink); font-family: var(--body); padding: clamp(18px, 4vw, 44px) 16px 64px; }
+        .admin { background: var(--paper); color: var(--ink); font-family: var(--body); padding: clamp(18px, 4vw, 44px) 16px 64px; }
         .shell { max-width: 640px; margin: 0 auto; }
         .back { display: inline-block; font-family: var(--data); font-size: .8rem; letter-spacing: .04em; color: var(--wagon-deep); text-decoration: none; margin-bottom: 16px; }
         .back:hover { color: var(--wagon); }
@@ -263,6 +255,8 @@ export default function AdminStatusPage() {
         .tabs a { font-family: var(--body); font-weight: 700; font-size: .88rem; text-decoration: none; color: var(--muted); padding: .5em 1em; border-radius: var(--r-pill); border: 1.5px solid transparent; }
         .tabs a:hover { color: var(--ink); }
         .tabs a.on { color: var(--wagon-deep); background: #fff; border-color: var(--line); }
+        .tabs .signout { margin-left: auto; font-family: var(--body); font-weight: 700; font-size: .88rem; color: var(--muted); background: none; border: 1.5px solid transparent; padding: .5em 1em; border-radius: var(--r-pill); cursor: pointer; }
+        .tabs .signout:hover { color: var(--wagon-deep); }
         .eyebrow { font-family: var(--data); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--wagon-deep); }
         h1 { font-family: var(--display); font-weight: 600; font-size: clamp(1.9rem, 5vw, 2.7rem); letter-spacing: -.01em; margin: .3rem 0 0; }
         .muted { color: var(--muted); margin-top: .4rem; font-size: .92rem; line-height: 1.5; }

@@ -13,18 +13,25 @@ datasource db {
 }
 
 
+enum Role {
+  ADMIN // full access, including managing users
+  STAFF // till, status, sales — everything except user management
+}
+
 model User {
   id            String          @id @default(cuid())
   name          String?
   email         String          @unique
   emailVerified DateTime?
   image         String?
+  role          Role            @default(STAFF)
+  active        Boolean         @default(false) // may sign in (set when invited by an admin)
   accounts      Account[]
   sessions      Session[]
   sales Sale[]
   // Optional for WebAuthn support
   Authenticator Authenticator[]
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
