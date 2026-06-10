@@ -1,10 +1,9 @@
 import type { AuthOptions } from "next-auth";
-import GithubProvider from "next-auth/providers/github";
-import EmailProvider from "next-auth/providers/email";
+import GoogleProvider from "next-auth/providers/google";
+import AzureADProvider from "next-auth/providers/azure-ad";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getPrisma } from "@/prisma";
-import { sendMagicLink } from "@/lib/email";
 
 // NextAuth holds one adapter for the isolate's lifetime, but on Workers a DB
 // client can't be reused across requests. This proxy hands the adapter a fresh
@@ -27,17 +26,19 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
 // getServerSession() inside the API routes.
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prismaProxy),
+  pages: { signIn: "/login" },
   providers: [
-    GithubProvider({
-      clientId: process.env.GITHUB_ID ?? "",
-      clientSecret: process.env.GITHUB_SECRET ?? "",
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      // Google verifies emails, so it's safe to let the same address use either provider.
+      allowDangerousEmailAccountLinking: true,
     }),
-    EmailProvider({
-      from: process.env.EMAIL_FROM,
-      // Send via Resend's HTTP API instead of SMTP so it works on Workers.
-      async sendVerificationRequest({ identifier, url, provider }) {
-        await sendMagicLink({ to: identifier, url, from: provider.from as string });
-      },
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID ?? "",
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET ?? "",
+      tenantId: process.env.AZURE_AD_TENANT_ID ?? "common",
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {

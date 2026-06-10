@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 // Prices are admins only.
 export default async function PricesLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/api/auth/signin?callbackUrl=/admin/prices");
+  if (!session?.user) redirect("/login?callbackUrl=/admin/prices");
   if (session.user.role !== "ADMIN") redirect("/admin");
   return <>{children}</>;
 }

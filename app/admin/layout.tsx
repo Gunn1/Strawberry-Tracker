@@ -7,7 +7,7 @@ import AdminShell from "./AdminShell";
 // navbar/chrome.
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) redirect("/api/auth/signin?callbackUrl=/admin");
+  if (!session?.user) redirect("/login?callbackUrl=/admin");
   return (
     <AdminShell email={session.user.email} role={session.user.role}>
       {children}
