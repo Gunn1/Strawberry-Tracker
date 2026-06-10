@@ -90,12 +90,23 @@ enum SaleMode {
   RHUBARB    // by the pound
 }
 
-// Singleton row of stand prices. The API always reads/writes id = "default".
+// Singleton row of stand prices + today's open status. id is always "default".
 model StandSettings {
   id             String @id @default("default")
   quartCents     Int    @default(500) // strawberries, per quart
   asparagusCents Int    @default(350) // per pound
   rhubarbCents   Int    @default(300) // per pound
+
+  // Customer-facing status is COMPUTED from the schedule below plus an optional
+  // same-day override set by staff at /admin (override wins for that day).
+  seasonActive   Boolean @default(false)         // is U-pick season on?
+  openMin        Int     @default(420)           // opens 7:00 a.m. (minutes from midnight, farm-local)
+  closeMin       Int     @default(720)           // closes at noon
+  finishByMin    Int     @default(750)           // finish picking by 12:30 p.m.
+  openDays       String  @default("1,2,3,4,5,6") // weekday numbers open (0=Sun … 6=Sat)
+  overrideStatus String  @default("")            // "" = follow schedule; else open|closed|pickedout
+  overrideDate   String  @default("")            // YYYY-MM-DD (farm-local) the override applies to
+  statusNote     String  @default("")            // note shown with the override
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

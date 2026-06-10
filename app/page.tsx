@@ -14,6 +14,33 @@ const FACEBOOK_URL = "https://www.facebook.com/CartersRedWagonFarm";
 const DIRECTIONS_URL =
   "https://www.google.com/maps/dir/?api=1&destination=14766+119th+Ave+Park+Rapids+MN+56470";
 
+// Main nav links — shared by the desktop bar and the mobile menu.
+const NAV: { href: string; label: string }[] = [
+  { href: "#upick", label: "U-Pick" },
+  { href: "#season", label: "In Season" },
+  { href: "#story", label: "Our Family" },
+  { href: "#contact", label: "Contact" },
+];
+
+// Customer-facing "are we open?" status (set by staff at /admin). Kept short
+// since it shows as a chip in the header.
+const STATUS_LABEL: Record<string, string> = {
+  open: "Open today",
+  closed: "Closed today",
+  pickedout: "Picked out",
+  preseason: "Not in season yet",
+};
+interface FarmStatus { openStatus: string; statusNote: string }
+
+// U-pick hours shown across the site (configurable from /admin). These defaults
+// render instantly; the live values load and replace them.
+const DEFAULT_HOURS = {
+  hoursWindow: "7 a.m. – noon",
+  hoursDays: "Mon – Sat · closed Sundays",
+  hoursFinishBy: "12:30 p.m.",
+};
+type Hours = typeof DEFAULT_HOURS;
+
 // "From the field" swipe gallery. Drop photos into public/gallery/ named
 // 1.jpg, 2.jpg, … and they appear here; until then each card shows a
 // strawberry placeholder. Edit the captions (or add/remove rows) freely.
@@ -21,9 +48,8 @@ const GALLERY: { src: string; caption: string }[] = [
   { src: "/gallery/1.jpg", caption: "Just-picked in the field" },
   { src: "/gallery/2.jpg", caption: "Down the rows" },
   { src: "/gallery/3.jpg", caption: "Quarts ready to go" },
-  { src: "/gallery/4.jpg", caption: "A morning at the farm" },
-  { src: "/gallery/5.jpg", caption: "The red wagon" },
-  { src: "/gallery/6.jpg", caption: "Sunset over the rows" },
+  // Add more by dropping 4.jpg, 5.jpg, … into public/gallery/ and adding rows:
+  // { src: "/gallery/4.jpg", caption: "A morning at the farm" },
 ];
 
 export default function RedWagonFarm() {
@@ -34,6 +60,31 @@ export default function RedWagonFarm() {
     const el = stripRef.current;
     if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
   };
+
+  // Mobile nav menu.
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // "Are we open today?" banner + configurable hours — set by staff at /admin.
+  const [status, setStatus] = useState<FarmStatus | null>(null);
+  const [hours, setHours] = useState<Hours>(DEFAULT_HOURS);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/status");
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!active) return;
+        setStatus({ openStatus: d.openStatus, statusNote: d.statusNote });
+        setHours({ hoursWindow: d.hoursWindow, hoursDays: d.hoursDays, hoursFinishBy: d.hoursFinishBy });
+      } catch {
+        /* falls back to the default hours / no banner */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Season-updates signup.
   const [email, setEmail] = useState("");
@@ -81,28 +132,40 @@ export default function RedWagonFarm() {
 
   return (
     <>
-      {/* ===== top utility bar ===== */}
-      <div className="topbar">
-        <div className="wrap">
-          <div>🍓 U-pick strawberries · late June – mid July</div>
-          <div><a href="tel:+12187324979">(218) 732-4979</a> · Park Rapids, MN</div>
-        </div>
-      </div>
-
-      {/* ===== header ===== */}
+      {/* ===== header (with live open-today status chip) ===== */}
       <header className="site">
         <div className="wrap">
-          <a className="brand" href="#" aria-label="Carter's Red Wagon Farm — home">
-            <Image className="mark" src="/Logo.webp" alt="Carter's Red Wagon Farm" width={240} height={147} priority />
-          </a>
+          <div className="brand-group">
+            <a className="brand" href="#" aria-label="Carter's Red Wagon Farm — home" onClick={() => setMenuOpen(false)}>
+              <Image className="mark" src="/Logo.webp" alt="Carter's Red Wagon Farm" width={240} height={147} priority />
+            </a>
+            {status && status.openStatus !== "hidden" && STATUS_LABEL[status.openStatus] && (
+              <span className={`hdr-status sbn-${status.openStatus}`} title={status.statusNote || undefined}>
+                <span className="sbn-dot" />
+                {STATUS_LABEL[status.openStatus]}
+              </span>
+            )}
+          </div>
           <nav className="main">
-            <a href="#produce">Produce</a>
-            <a href="#upick">U-Pick</a>
-            <a href="#story">Our Family</a>
-            <a href="#contact">Contact</a>
+            {NAV.map((n) => (
+              <a key={n.href} href={n.href}>{n.label}</a>
+            ))}
             <a className="btn btn--primary nav-cta" href="tel:+12187324979">Call (218) 732-4979</a>
           </nav>
-          <button className="menu-btn" aria-label="Menu"><span></span><span></span><span></span></button>
+          <button
+            className={`menu-btn ${menuOpen ? "open" : ""}`}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+        <div className={`mobile-menu ${menuOpen ? "open" : ""}`}>
+          {NAV.map((n) => (
+            <a key={n.href} href={n.href} onClick={() => setMenuOpen(false)}>{n.label}</a>
+          ))}
+          <a className="btn btn--primary" href="tel:+12187324979" onClick={() => setMenuOpen(false)}>Call (218) 732-4979</a>
         </div>
       </header>
 
@@ -132,7 +195,7 @@ export default function RedWagonFarm() {
               </svg>
             </div>
             <div className="ph-img" style={{ backgroundImage: "url(/hero.jpg)" }} />
-            <figcaption>🍓 Picked fresh at the Farm</figcaption>
+            <figcaption>Picked fresh at the Farm</figcaption>
           </figure>
         </div>
       </section>
@@ -157,7 +220,7 @@ export default function RedWagonFarm() {
               <div className="body">
                 <div className="where">14766 119th Ave, Park Rapids</div>
                 <h3>U-Pick at the Farm</h3>
-                <p className="desc">We take you out by wagon to rows overflowing with big, red, ripe berries. Picking is by the pound — we provide the flats, so please don&apos;t bring your own containers. Open 7 a.m.–noon, Monday–Saturday (closed Sundays).</p>
+                <p className="desc">We take you out by wagon to rows overflowing with big, red, ripe berries. Picking is by the pound — we provide the flats, so please don&apos;t bring your own containers. Open {hours.hoursWindow}, {hours.hoursDays}.</p>
                 <div className="tags"><span className="tag">By the pound</span><span className="tag">Wagon ride</span><span className="tag">No appointments</span></div>
                 <a className="more" href="#upick">U-pick details <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></a>
               </div>
@@ -188,17 +251,68 @@ export default function RedWagonFarm() {
       <section className="upick" id="upick">
         <div className="wrap grid">
           <div className="reveal">
+            {status && status.openStatus !== "hidden" && STATUS_LABEL[status.openStatus] && (
+              <div className={`upick-status us-${status.openStatus}`}>
+                <span className="us-head">
+                  <span className="us-dot" />
+                  <b>{STATUS_LABEL[status.openStatus]}</b>
+                </span>
+                {status.statusNote && <span className="us-note">{status.statusNote}</span>}
+              </div>
+            )}
             <span className="eyebrow">U-Pick Strawberries · late June – mid July</span>
             <h2>Pick your own — by the pound.</h2>
-            <p>Our 2026 berries should be ready by late June — we&apos;ll update Facebook as the season nears. We don&apos;t take appointments: Mondays usually pick best (we&apos;re closed Sundays) and Friday–Saturday are busiest. Picking is by the pound this year, and we provide the flats — please don&apos;t bring your own containers.</p>
-            <p className="fineprint">We welcome children, but they must stay with you at all times. No pets or smoking on the property. If you&apos;re not feeling well, please come another day.</p>
+            <p>Our 2026 berries should be ready by late June — we&apos;ll post updates here and on Facebook as the season nears. We take you out by wagon to rows of big, red, juicy berries, and you even get to taste one or two to keep up your strength!</p>
+            <p className="fineprint">Picking is by the pound this year, and we provide the flats — see the guidelines below before you head out.</p>
           </div>
           <div className="booking reveal">
-            <div className="row"><span>Hours</span><b>7 a.m. – noon</b></div>
-            <div className="row"><span>Days</span><b>Mon – Sat · closed Sundays</b></div>
-            <div className="row"><span>Finish by</span><b>12:30 p.m.</b></div>
-            <p className="callnote">Always call <a href="tel:+12187324979">(218) 732-4979</a> or check Facebook before coming — we may close for weather, ripening, or once we&apos;re picked out.</p>
+            <div className="row"><span>Hours</span><b>{hours.hoursWindow}</b></div>
+            <div className="row"><span>Days</span><b>{hours.hoursDays}</b></div>
+            <div className="row"><span>Finish by</span><b>{hours.hoursFinishBy}</b></div>
+            <p className="callnote">Check today&apos;s status at the top of this page before you head out — we may close for weather, ripening, or once we&apos;re picked out. You can also call <a href="tel:+12187324979">(218) 732-4979</a> or check Facebook.</p>
             <a className="btn btn--onpine" href="tel:+12187324979">Call before you come →</a>
+            <a className="emailcta" href="#signup">Want a heads-up when picking opens? Get email updates →</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== know before you go ===== */}
+      <section className="kbyg" id="before-you-go">
+        <div className="wrap">
+          <div className="sec-head reveal">
+            <span className="eyebrow">Plan ahead</span>
+            <h2>Know before you go.</h2>
+          </div>
+          <ul className="guidelines">
+            <li className="reveal">
+              <span className="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8h16l-1.3 10.2a2 2 0 0 1-2 1.8H7.3a2 2 0 0 1-2-1.8L4 8Z" /><path d="M8.5 8 12 3l3.5 5" /></svg></span>
+              <div><b>Pick by the pound.</b> We provide the flats to pick into, so please leave your own containers at home.</div>
+            </li>
+            <li className="reveal">
+              <span className="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></svg></span>
+              <div><b>No appointments.</b> Mondays usually pick best (we&apos;re closed Sundays); Friday and Saturday are busiest.</div>
+            </li>
+            <li className="reveal">
+              <span className="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" /></svg></span>
+              <div><b>Check today&apos;s status first.</b> We post it at the top of this page — we may close for weather, ripening, or once we&apos;re picked out. You can also call <a href="tel:+12187324979">(218) 732-4979</a> or check Facebook.</div>
+            </li>
+            <li className="reveal">
+              <span className="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="7" r="3" /><path d="M3 20c0-2.8 2.2-5 5-5s5 2.2 5 5" /><circle cx="17.5" cy="10" r="2" /><path d="M14.5 20c0-1.7 1.3-3 3-3s3 1.3 3 3" /></svg></span>
+              <div><b>Kids are welcome,</b> but must stay with you at all times — no roaming the patch.</div>
+            </li>
+            <li className="reveal">
+              <span className="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M5.6 5.6 18.4 18.4" /></svg></span>
+              <div><b>No pets or smoking</b> on the property, please.</div>
+            </li>
+            <li className="reveal">
+              <span className="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20S4 14.5 4 9.5A3.6 3.6 0 0 1 12 7a3.6 3.6 0 0 1 8 2.5C20 14.5 12 20 12 20Z" /></svg></span>
+              <div><b>Feeling unwell?</b> Please come another day so everyone stays healthy.</div>
+            </li>
+          </ul>
+
+          <div className="orders reveal">
+            <h3>Want them ready-picked?</h3>
+            <p>Find our quarts and buckets at the Red Barn and area farmers&apos; markets. To order a <b>10# flat</b>, leave a message at <a href="tel:+12187324979">(218) 732-4979</a> or send us a message on Facebook — orders are filled first-come for pickup at the farm (a $3-per-flat card fee applies). We accept cash, Discover, MasterCard &amp; Visa.</p>
           </div>
         </div>
       </section>
@@ -209,7 +323,7 @@ export default function RedWagonFarm() {
           <div className="sec-head reveal">
             <span className="eyebrow">The farm&apos;s year</span>
             <h2>A whole season to look forward to.</h2>
-            <p>We grow with the calendar, not against it. Here&apos;s roughly when everything comes in. Exact dates depend on the weather, so check Facebook as each season nears.</p>
+            <p>We grow with the calendar, not against it. Here&apos;s roughly when everything comes in. Exact dates depend on the weather, so watch this page (or Facebook) as each season nears.</p>
           </div>
           <div className="timeline">
             <div className="month reveal">
@@ -240,13 +354,7 @@ export default function RedWagonFarm() {
       <section className="story" id="story">
         <div className="wrap grid">
           <div className="art reveal">
-            <Image src="/cater-family-photo.jpg" alt="The Carter Family" width={300} height={200} />
-            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-              <path d="M6 46c0-10 8-16 14-16M58 46c0-10-8-16-14-16" stroke="#F6EFE2" strokeWidth="2" />
-              <circle cx="20" cy="22" r="7" fill="#F6EFE2" /><circle cx="44" cy="22" r="7" fill="#F6EFE2" />
-              <path d="M10 50c0-7 4-12 10-12s10 5 10 12M34 50c0-7 4-12 10-12s10 5 10 12" fill="#F6EFE2" />
-              <circle cx="32" cy="40" r="5" fill="#C5392C" />
-            </svg>
+            <Image src="/cater-family-photo.jpg" alt="The Carter family at Red Wagon Farm" fill sizes="(max-width: 920px) 100vw, 45vw" style={{ objectFit: "cover" }} />
           </div>
           <div className="reveal">
             <span className="eyebrow">Why we farm</span>
@@ -289,56 +397,16 @@ export default function RedWagonFarm() {
         </div>
       </section>
 
-      {/* ===== fresh produce ===== */}
-      <section className="today" id="produce">
-        <div className="wrap">
-          <div className="head reveal">
-            <div>
-              <span className="eyebrow">Locally grown</span>
-              <h2 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", marginTop: ".4rem" }}>Fresh Produce</h2>
-            </div>
-            <span className="stamp mono">Park Rapids, in the heart of Minnesota</span>
-          </div>
-          <div className="grid-produce">
-            <div className="prod reveal"><span className="name">Asparagus</span><span className="avail">Tender spring shoots · May–June</span></div>
-            <div className="prod reveal"><span className="name">Rhubarb</span><span className="avail">Ruby-red stalks · late May–early July</span></div>
-            <div className="prod reveal"><span className="name">Strawberries</span><span className="avail">U-pick &amp; ready-picked · late June–mid July</span></div>
-            <div className="prod reveal"><span className="name">Summer produce</span><span className="avail">Locally grown fruits &amp; veggies in season</span></div>
-          </div>
-          <p className="produce-note reveal">Fresh produce usually begins in mid-to-late May, when the first asparagus pushes up to herald spring — often overlapping with our rhubarb and, by late June, the sweetest big, red, juicy strawberries you&apos;ve ever seen.</p>
-        </div>
-      </section>
 
-      {/* ===== visit & contact ===== */}
-      <section className="contact" id="contact">
-        <div className="wrap contact-grid">
-          <div className="reveal">
-            <span className="eyebrow">Visit &amp; contact</span>
-            <h2>Come see us in Park Rapids.</h2>
-            <div className="contact-rows">
-              <div className="crow">
-                <span className="ck">Where</span>
-                <span className="cv">14766 119th Ave, Park Rapids, MN 56470</span>
-              </div>
-              <div className="crow">
-                <span className="ck">U-pick hours</span>
-                <span className="cv">7 a.m. – noon · Mon–Sat · closed Sundays</span>
-              </div>
-              <div className="crow">
-                <span className="ck">Phone</span>
-                <span className="cv"><a href="tel:+12187324979">(218) 732-4979</a> — our answering machine</span>
-              </div>
-            </div>
-            <p className="contact-note">Please always call or check Facebook before heading out — we may close for weather, ripening, or once we&apos;re picked out, and Facebook is updated throughout the day.</p>
-            <div className="contact-actions">
-              <a className="btn btn--primary" href={DIRECTIONS_URL} target="_blank" rel="noopener noreferrer">Get directions</a>
-              <a className="btn btn--ghost" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Follow on Facebook</a>
-            </div>
+      {/* ===== newsletter signup band ===== */}
+      <section className="newsletter" id="signup">
+        <div className="wrap nl-inner reveal">
+          <div className="nl-text">
+            <span className="eyebrow">Stay in the loop</span>
+            <h2>Never miss berry season.</h2>
+            <p>Drop your email and we&apos;ll let you know when u-pick opens and when ready-picked berries are available — that&apos;s it.</p>
           </div>
-
-          <div className="signup reveal">
-            <h3>Get a heads-up for berry season</h3>
-            <p>Drop your email and we&apos;ll let you know when u-pick opens and when ready-picked berries are available. For day-to-day updates, Facebook is always the most current.</p>
+          <div className="nl-form">
             {subState === "done" ? (
               <div className="sub-done">🍓 You&apos;re on the list — see you in the rows!</div>
             ) : (
@@ -358,7 +426,46 @@ export default function RedWagonFarm() {
               </form>
             )}
             {subState === "error" && <p className="sub-err">{subMsg}</p>}
-            <p className="sub-fine">We&apos;ll only email about the season — no spam, and you can unsubscribe anytime.</p>
+            <p className="sub-fine">No spam — just season updates. Unsubscribe anytime.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== visit & contact ===== */}
+      <section className="contact" id="contact">
+        <div className="wrap contact-grid">
+          <div className="reveal">
+            <span className="eyebrow">Visit &amp; contact</span>
+            <h2>Come see us in Park Rapids.</h2>
+            <div className="contact-rows">
+              <div className="crow">
+                <span className="ck">Where</span>
+                <span className="cv">14766 119th Ave, Park Rapids, MN 56470</span>
+              </div>
+              <div className="crow">
+                <span className="ck">U-pick hours</span>
+                <span className="cv">{hours.hoursWindow} · {hours.hoursDays}</span>
+              </div>
+              <div className="crow">
+                <span className="ck">Phone</span>
+                <span className="cv"><a href="tel:+12187324979">(218) 732-4979</a> — our answering machine</span>
+              </div>
+            </div>
+            <p className="contact-note">Before heading out, check today&apos;s status at the top of this page — we update it through the day. You can also call <a href="tel:+12187324979">(218) 732-4979</a> or follow us on Facebook. We may close for weather, ripening, or once we&apos;re picked out.</p>
+            <div className="contact-actions">
+              <a className="btn btn--primary" href={DIRECTIONS_URL} target="_blank" rel="noopener noreferrer">Get directions</a>
+              <a className="btn btn--ghost" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Follow on Facebook</a>
+            </div>
+          </div>
+
+          <div className="map reveal">
+            <iframe
+              title="Map to Carter's Red Wagon Farm, 14766 119th Ave, Park Rapids, MN"
+              src="https://www.google.com/maps?q=14766+119th+Ave+Park+Rapids+MN+56470&output=embed"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
           </div>
         </div>
       </section>
@@ -369,7 +476,7 @@ export default function RedWagonFarm() {
           <div className="foot-grid">
             <div className="foot-brand">
               <div className="name">Carter&apos;s Red Wagon Farm</div>
-              <p style={{ marginTop: ".8rem" }}>A Carter family farm in Park Rapids, Minnesota, growing quality fruits and vegetables for our community. Facebook is always the most up-to-date place for picking conditions and availability.</p>
+              <p style={{ marginTop: ".8rem" }}>A Carter family farm in Park Rapids, Minnesota, growing quality fruits and vegetables for our community. We post today&apos;s picking status right here on the site — and on Facebook.</p>
               <a className="btn btn--primary fb-btn" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Find us on Facebook</a>
             </div>
             <div>
@@ -377,8 +484,8 @@ export default function RedWagonFarm() {
               <ul>
                 <li>14766 119th Ave</li>
                 <li>Park Rapids, MN 56470</li>
-                <li>U-pick 7 a.m.–noon · Mon–Sat</li>
-                <li>Closed Sundays</li>
+                <li>U-pick {hours.hoursWindow}</li>
+                <li>{hours.hoursDays}</li>
               </ul>
             </div>
             <div>
@@ -447,14 +554,19 @@ export default function RedWagonFarm() {
         .btn--onpine:hover { background: #fff; transform: translateY(-2px); }
         :focus-visible { outline: 3px solid var(--wheat); outline-offset: 3px; border-radius: 4px; }
 
-        .topbar {
-          background: var(--pine); color: #EBE3D2;
-          font-family: var(--data); font-size: .74rem; letter-spacing: .04em;
-        }
-        .topbar .wrap { display: flex; justify-content: space-between; gap: 1rem; padding-block: .55rem; flex-wrap: wrap; }
-        .topbar b { color: var(--wheat); font-weight: 500; }
-        .topbar a { color: inherit; text-decoration: none; }
-        .topbar a:hover { color: var(--wheat); }
+        /* live "open today" status chip in the header */
+        .brand-group { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+        .hdr-status { display: inline-flex; align-items: center; gap: .42rem; font-family: var(--display); font-weight: 600; font-size: .9rem; letter-spacing: -.01em; padding: .28em .8em; border-radius: 999px; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(39,31,23,.08); }
+        .sbn-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+        .sbn-open { background: #e3f1da; color: #265020; }
+        .sbn-open .sbn-dot { animation: sbpulse 2.2s ease-in-out infinite; }
+        @keyframes sbpulse { 0% { box-shadow: 0 0 0 0 rgba(38,80,32,.55); } 70% { box-shadow: 0 0 0 5px rgba(38,80,32,0); } 100% { box-shadow: 0 0 0 0 rgba(38,80,32,0); } }
+        @media (prefers-reduced-motion: reduce) { .sbn-open .sbn-dot { animation: none; } }
+        .sbn-closed { background: #fbe4da; color: var(--wagon-deep); }
+        .sbn-pickedout { background: #fbeac9; color: #845410; }
+        .sbn-preseason { background: #e8ece5; color: var(--pine); }
+        @media (max-width: 380px) { .hdr-status { font-size: .82rem; padding: .25em .65em; } }
+
 
         header.site {
           position: sticky; top: 0; z-index: 50;
@@ -473,7 +585,12 @@ export default function RedWagonFarm() {
         nav.main a:hover::after { width: 100%; }
         .nav-cta { margin-left: .4rem; }
         .menu-btn { display: none; background: none; border: 0; cursor: pointer; padding: 8px; }
-        .menu-btn span { display: block; width: 24px; height: 2px; background: var(--ink); margin: 5px 0; }
+        .menu-btn span { display: block; width: 24px; height: 2px; background: var(--ink); margin: 5px 0; transition: transform .2s ease, opacity .2s ease; transform-origin: center; }
+        .menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .menu-btn.open span:nth-child(2) { opacity: 0; }
+        .menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+        .mobile-menu { display: none; }
 
         .hero { position: relative; padding-top: clamp(40px, 6vw, 80px); padding-bottom: clamp(48px, 7vw, 96px); }
         .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(28px, 4vw, 60px); align-items: center; }
@@ -517,6 +634,8 @@ export default function RedWagonFarm() {
         }
 
         section { padding-block: clamp(56px, 8vw, 110px); }
+        /* offset anchored sections so the sticky header doesn't cover them */
+        section[id] { scroll-margin-top: 84px; }
         .sec-head { max-width: 52ch; margin-bottom: clamp(28px, 4vw, 52px); }
         .sec-head h2 { font-size: clamp(1.9rem, 4vw, 3rem); margin-top: .5rem; }
         .sec-head p { color: var(--muted); margin-top: 1rem; font-size: 1.08rem; }
@@ -544,6 +663,15 @@ export default function RedWagonFarm() {
         .upick { background: var(--wagon); color: #fff; }
         .upick .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: clamp(28px, 4vw, 56px); align-items: center; }
         .upick .eyebrow { color: #FBE0B6; }
+        .upick-status { display: flex; width: fit-content; max-width: 100%; flex-direction: column; align-items: flex-start; gap: .3rem; background: #fff; color: var(--ink); border-radius: var(--r-md); padding: .7rem 1.1rem; margin-bottom: 1.3rem; font-size: .95rem; box-shadow: 0 8px 22px -12px rgba(0,0,0,.45); }
+        .us-head { display: inline-flex; align-items: center; gap: .5rem; }
+        .upick-status b { font-family: var(--display); font-weight: 600; }
+        .upick-status .us-note { color: var(--muted); line-height: 1.45; }
+        .us-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+        .us-open .us-dot { background: #3d7a33; }
+        .us-closed .us-dot { background: var(--wagon); }
+        .us-pickedout .us-dot { background: #d99a2b; }
+        .us-preseason .us-dot { background: var(--pine); }
         .upick h2 { color: #fff; font-size: clamp(2rem, 4.4vw, 3.2rem); margin-top: .4rem; }
         .upick p { color: rgba(255,255,255,.9); margin-top: 1rem; font-size: 1.1rem; max-width: 44ch; }
         .upick .fineprint { font-size: .92rem; color: rgba(255,255,255,.75); margin-top: 1rem; }
@@ -557,6 +685,8 @@ export default function RedWagonFarm() {
         .booking .callnote { font-size: .82rem; line-height: 1.5; color: rgba(255,255,255,.85); margin-top: 1rem; }
         .booking .callnote a { color: #FBE0B6; text-decoration: underline; }
         .booking .btn { width: 100%; justify-content: center; margin-top: 1.1rem; }
+        .emailcta { display: block; text-align: center; margin-top: .9rem; font-size: .88rem; font-weight: 600; color: #FBE0B6; text-decoration: none; }
+        .emailcta:hover { color: #fff; text-decoration: underline; }
 
         .season { background: var(--pine); color: #F2ECDD; }
         .season .sec-head h2 { color: #fff; }
@@ -641,10 +771,12 @@ export default function RedWagonFarm() {
         .contact-note { color: var(--muted); margin-top: 1.2rem; line-height: 1.6; max-width: 50ch; }
         .contact-actions { display: flex; gap: .7rem; flex-wrap: wrap; margin-top: 1.6rem; }
 
-        .signup { background: var(--pine); color: #F2ECDD; border-radius: var(--r-lg); padding: clamp(22px, 3vw, 32px); box-shadow: var(--shadow-lg); }
-        .signup h3 { font-family: var(--display); font-weight: 600; font-size: 1.5rem; color: #fff; }
-        .signup p { margin-top: .8rem; color: rgba(242,236,221,.82); line-height: 1.55; }
-        .sub-form { display: flex; gap: .5rem; margin-top: 1.3rem; flex-wrap: wrap; }
+        .newsletter { background: var(--pine); color: #F2ECDD; }
+        .nl-inner { display: grid; grid-template-columns: 1fr .9fr; gap: clamp(24px, 4vw, 56px); align-items: center; }
+        .newsletter .eyebrow { color: var(--wheat); }
+        .newsletter h2 { font-family: var(--display); font-weight: 600; color: #fff; font-size: clamp(1.9rem, 4vw, 2.8rem); letter-spacing: -.01em; margin-top: .4rem; }
+        .newsletter > .wrap > .nl-text p { margin-top: .9rem; color: rgba(242,236,221,.85); line-height: 1.55; font-size: 1.05rem; max-width: 42ch; }
+        .sub-form { display: flex; gap: .5rem; flex-wrap: wrap; }
         .sub-form input { flex: 1; min-width: 0; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.28); border-radius: var(--r-pill); padding: .8em 1.2em; color: #fff; font-family: var(--body); font-size: 1rem; }
         .sub-form input::placeholder { color: rgba(242,236,221,.55); }
         .sub-form input:focus { outline: none; border-color: var(--wheat); }
@@ -652,6 +784,25 @@ export default function RedWagonFarm() {
         .sub-done { margin-top: 1.3rem; font-family: var(--display); font-size: 1.1rem; color: var(--wheat); }
         .sub-err { margin-top: .7rem; color: #FBC8B6; font-size: .9rem; }
         .sub-fine { margin-top: .9rem; font-family: var(--data); font-size: .72rem; color: rgba(242,236,221,.6); }
+
+        .map { border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); }
+        .map iframe { display: block; width: 100%; height: clamp(280px, 42vw, 440px); border: 0; }
+
+        /* ===== know before you go ===== */
+        .kbyg { background: var(--paper-2); }
+        .guidelines { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(14px, 2vw, 22px); }
+        .guidelines li { display: flex; gap: .9rem; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: var(--r-md); padding: 1.1rem 1.2rem; }
+        .guidelines .gi { flex: none; width: 28px; height: 28px; color: var(--wagon); display: grid; place-items: center; margin-top: 1px; }
+        .guidelines .gi svg { width: 26px; height: 26px; display: block; }
+        .guidelines div { font-size: 1rem; line-height: 1.5; color: var(--muted); }
+        .guidelines b { color: var(--ink); font-weight: 700; }
+        .guidelines a { color: var(--wagon); text-decoration: none; }
+        .guidelines a:hover { text-decoration: underline; }
+        .orders { margin-top: clamp(20px, 3vw, 32px); background: var(--pine); color: #F2ECDD; border-radius: var(--r-lg); padding: clamp(22px, 3vw, 32px); box-shadow: var(--shadow-lg); }
+        .orders h3 { font-family: var(--display); font-weight: 600; font-size: 1.4rem; color: #fff; }
+        .orders p { margin-top: .7rem; line-height: 1.6; color: rgba(242,236,221,.88); max-width: 70ch; }
+        .orders b { color: var(--wheat); }
+        .orders a { color: var(--wheat); text-decoration: underline; }
 
         footer.site { background: var(--ink); color: #E8DECB; padding-block: clamp(48px, 6vw, 80px) 2rem; }
         .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 2.2rem; }
@@ -671,12 +822,23 @@ export default function RedWagonFarm() {
         @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
 
         @media (max-width: 920px) {
-          .hero-grid, .upick .grid, .story .grid, .contact-grid { grid-template-columns: 1fr; }
+          .hero-grid, .upick .grid, .story .grid, .contact-grid, .nl-inner { grid-template-columns: 1fr; }
           .places, .grid-produce { grid-template-columns: 1fr 1fr; }
           .timeline { grid-template-columns: 1fr 1fr; }
           .foot-grid { grid-template-columns: 1fr 1fr; }
           nav.main { display: none; }
           .menu-btn { display: block; }
+          .mobile-menu.open {
+            display: flex; flex-direction: column;
+            padding: .4rem var(--gut) 1.2rem;
+            background: var(--paper); border-top: 1px solid var(--line);
+          }
+          .mobile-menu.open a { padding: .95rem .2rem; font-weight: 700; font-size: 1.08rem; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+          .mobile-menu.open a:last-of-type { border-bottom: 0; }
+          .mobile-menu.open .btn { margin-top: .9rem; justify-content: center; color: #fff; border-bottom: 0; }
+        }
+        @media (max-width: 600px) {
+          .guidelines { grid-template-columns: 1fr; }
         }
         @media (max-width: 540px) {
           .places, .grid-produce, .timeline, .foot-grid { grid-template-columns: 1fr; }
