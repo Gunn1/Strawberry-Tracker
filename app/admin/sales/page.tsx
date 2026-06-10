@@ -13,6 +13,10 @@ const DayBars = dynamic(() => import("./Charts").then((m) => m.DayBars), {
   ssr: false,
   loading: () => <div className="chartph" style={{ height: 220 }} />,
 });
+const ProductPie = dynamic(() => import("./Charts").then((m) => m.ProductPie), {
+  ssr: false,
+  loading: () => <div className="chartph" style={{ height: 250 }} />,
+});
 
 /* ------------------------------------------------------------------ */
 /* Types + helpers                                                     */
@@ -137,6 +141,12 @@ export default function SalesReportPage() {
 
             {/* per-product */}
             <h2 className="sub">By product</h2>
+            {(() => {
+              const pie = PRODUCTS.map((p) => ({ name: p.label, value: data.byMode[p.mode].revenue, mode: p.mode })).filter(
+                (d) => d.value > 0,
+              );
+              return pie.length > 0 ? <ProductPie data={pie} /> : null;
+            })()}
             <div className="products">
               {PRODUCTS.map((p) => {
                 const m = data.byMode[p.mode];

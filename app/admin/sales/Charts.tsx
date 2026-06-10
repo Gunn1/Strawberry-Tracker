@@ -1,10 +1,17 @@
 "use client";
 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
 
 const WAGON = "#C5392C";
 const INK = "#271F17";
 const MUTED = "#6F6354";
+
+// Distinct colors per product (strawberry red, asparagus green, rhubarb amber).
+const PRODUCT_FILL: Record<string, string> = {
+  QUART: "#C5392C",
+  ASPARAGUS: "#8FA06A",
+  RHUBARB: "#D98B3A",
+};
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const axisMoney = (cents: number) => `$${Math.round(cents / 100)}`;
@@ -29,6 +36,35 @@ export function RevenueBars({ data }: { data: { name: string; revenue: number }[
         <Tooltip cursor={{ fill: "rgba(39,31,23,0.05)" }} formatter={(v) => [money(v as number), "Revenue"]} />
         <Bar dataKey="revenue" fill={WAGON} radius={[0, 6, 6, 0]} maxBarSize={26} />
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Revenue share by produce (donut).
+export function ProductPie({ data }: { data: { name: string; value: number; mode: string }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={95}
+          paddingAngle={2}
+          stroke="none"
+          label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`}
+          labelLine={false}
+        >
+          {data.map((d) => (
+            <Cell key={d.mode} fill={PRODUCT_FILL[d.mode] ?? "#ccc"} />
+          ))}
+        </Pie>
+        <Tooltip formatter={(v) => [money(v as number), "Revenue"]} />
+        <Legend iconType="circle" />
+      </PieChart>
     </ResponsiveContainer>
   );
 }
