@@ -3,6 +3,7 @@ import GithubProvider from "next-auth/providers/github";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/prisma";
+import { sendMagicLink } from "@/lib/email";
 
 // Staff who are allowed into the admin / till. Set ADMIN_EMAILS in the
 // environment (comma-separated). While it's empty, any successful sign-in is
@@ -22,8 +23,11 @@ export const authOptions: AuthOptions = {
       clientSecret: process.env.GITHUB_SECRET ?? "",
     }),
     EmailProvider({
-      server: process.env.EMAIL_SERVER,
       from: process.env.EMAIL_FROM,
+      // Send via Resend's HTTP API instead of SMTP so it works on Workers.
+      async sendVerificationRequest({ identifier, url, provider }) {
+        await sendMagicLink({ to: identifier, url, from: provider.from as string });
+      },
     }),
   ],
   callbacks: {
