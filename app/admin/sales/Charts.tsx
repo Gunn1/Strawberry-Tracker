@@ -40,6 +40,28 @@ export function RevenueBars({ data }: { data: { name: string; revenue: number }[
   );
 }
 
+// Label placed inside the donut ring so it can never overflow the container.
+interface SliceLabel {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+}
+function insideLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }: SliceLabel) {
+  if (percent < 0.05) return null; // skip tiny slivers
+  const RADIAN = Math.PI / 180;
+  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + r * Math.cos(-midAngle * RADIAN);
+  const y = cy + r * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
+      {Math.round(percent * 100)}%
+    </text>
+  );
+}
+
 // Revenue share by produce (donut).
 export function ProductPie({ data }: { data: { name: string; value: number; mode: string }[] }) {
   return (
@@ -55,7 +77,7 @@ export function ProductPie({ data }: { data: { name: string; value: number; mode
           outerRadius={95}
           paddingAngle={2}
           stroke="none"
-          label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`}
+          label={insideLabel}
           labelLine={false}
         >
           {data.map((d) => (
