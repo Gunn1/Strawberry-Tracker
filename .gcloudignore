@@ -1,0 +1,16 @@
+# Files not uploaded to Cloud Build when running `gcloud run deploy --source .`
+.git
+.gitignore
+node_modules
+.next
+generated
+.env
+.env.*
+.dev.vars
+.open-next
+.wrangler
+.pnpm-store
+*.md
+.vscode
+.devcontainer
+.github

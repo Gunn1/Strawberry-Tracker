@@ -39,3 +39,9 @@ next-env.d.ts
 # generated prisma client
 /prisma/src/generated/prisma
 /generated/prisma
+
+# deploy build artifacts
+/.open-next/
+/.wrangler/
+.dev.vars
+.env.bak
