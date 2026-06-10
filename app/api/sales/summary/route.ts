@@ -51,6 +51,9 @@ export async function GET(req: Request) {
         totalCents: true,
         tenderedCents: true,
         changeCents: true,
+        location: true,
+        cashierId: true,
+        cashier: { select: { name: true, email: true } },
       },
     });
 
@@ -63,6 +66,11 @@ export async function GET(req: Request) {
       RHUBARB: { units: 0, revenue: 0, count: 0 },
     };
     const dayMap = new Map<string, { revenue: number; count: number }>();
+    const cashierMap = new Map<
+      string,
+      { id: string; name: string; count: number; revenue: number; units: Record<SaleMode, number> }
+    >();
+    const locMap = new Map<string, { name: string; count: number; revenue: number }>();
 
     for (const s of sales) {
       revenue += s.totalCents;
@@ -81,11 +89,37 @@ export async function GET(req: Request) {
       d.revenue += s.totalCents;
       d.count += 1;
       dayMap.set(key, d);
+
+      // who sold what
+      const cid = s.cashierId ?? "unknown";
+      let c = cashierMap.get(cid);
+      if (!c) {
+        c = {
+          id: cid,
+          name: s.cashier?.name || s.cashier?.email || "Unknown",
+          count: 0,
+          revenue: 0,
+          units: { QUART: 0, ASPARAGUS: 0, RHUBARB: 0 },
+        };
+        cashierMap.set(cid, c);
+      }
+      c.count += 1;
+      c.revenue += s.totalCents;
+      c.units[s.mode as SaleMode] += s.quantity;
+
+      // where it sold
+      const locName = s.location || "Unspecified";
+      const l = locMap.get(locName) ?? { name: locName, count: 0, revenue: 0 };
+      l.count += 1;
+      l.revenue += s.totalCents;
+      locMap.set(locName, l);
     }
 
     const byDay = [...dayMap.entries()]
       .map(([date, v]) => ({ date, ...v }))
       .sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
+    const byCashier = [...cashierMap.values()].sort((a, b) => b.revenue - a.revenue);
+    const byLocation = [...locMap.values()].sort((a, b) => b.revenue - a.revenue);
 
     return NextResponse.json({
       range,
@@ -96,6 +130,8 @@ export async function GET(req: Request) {
       change,
       byMode,
       byDay,
+      byCashier,
+      byLocation,
     });
   } catch {
     return NextResponse.json({ error: "Failed to load sales summary" }, { status: 500 });

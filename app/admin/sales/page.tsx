@@ -17,6 +17,8 @@ interface Summary {
   change: number;
   byMode: Record<SaleMode, { units: number; revenue: number; count: number }>;
   byDay: { date: string; revenue: number; count: number }[];
+  byCashier: { id: string; name: string; count: number; revenue: number; units: Record<SaleMode, number> }[];
+  byLocation: { name: string; count: number; revenue: number }[];
 }
 
 const PRODUCTS: { mode: SaleMode; label: string; unit: string }[] = [
@@ -144,6 +146,44 @@ export default function SalesReportPage() {
               })}
             </div>
 
+            {/* who sold what */}
+            <h2 className="sub">By cashier</h2>
+            <div className="cashiers">
+              {data.byCashier.map((c) => {
+                const units = PRODUCTS.filter((p) => c.units[p.mode] > 0)
+                  .map((p) => `${c.units[p.mode]} ${p.unit} ${p.label.toLowerCase()}`)
+                  .join(" · ");
+                return (
+                  <div className="cashrow" key={c.id}>
+                    <div className="cinfo">
+                      <span className="cname">{c.name}</span>
+                      <span className="cunits mono">{units || "—"}</span>
+                    </div>
+                    <span className="ccount mono">{c.count} sale{c.count === 1 ? "" : "s"}</span>
+                    <span className="crev">{fmt(c.revenue)}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* where it sold */}
+            {data.byLocation.length > 1 && (
+              <>
+                <h2 className="sub">By location</h2>
+                <div className="cashiers">
+                  {data.byLocation.map((l) => (
+                    <div className="cashrow" key={l.name}>
+                      <div className="cinfo">
+                        <span className="cname">{l.name}</span>
+                      </div>
+                      <span className="ccount mono">{l.count} sale{l.count === 1 ? "" : "s"}</span>
+                      <span className="crev">{fmt(l.revenue)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
             {/* per-day */}
             {data.byDay.length > 1 && (
               <>
@@ -234,6 +274,15 @@ export default function SalesReportPage() {
         .dbar span { display: block; height: 100%; background: var(--sage); border-radius: 999px; }
         .dcount { font-size: .74rem; color: var(--muted); min-width: 1.5rem; text-align: right; }
         .drev { font-size: .82rem; color: var(--wagon-deep); min-width: 4.5rem; text-align: right; }
+
+        .cashiers { display: flex; flex-direction: column; }
+        .cashrow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .8rem 1rem; padding: .8rem 0; border-top: 1px solid var(--line); }
+        .cashrow:first-child { border-top: 0; }
+        .cinfo { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+        .cname { font-family: var(--display); font-weight: 600; font-size: 1.05rem; }
+        .cunits { font-size: .74rem; color: var(--muted); }
+        .ccount { font-family: var(--data); font-size: .76rem; color: var(--muted); text-align: right; white-space: nowrap; }
+        .crev { font-family: var(--data); font-weight: 500; font-size: 1.05rem; color: var(--wagon-deep); text-align: right; white-space: nowrap; }
 
         @media (max-width: 600px) {
           .kpis { grid-template-columns: 1fr 1fr; }
