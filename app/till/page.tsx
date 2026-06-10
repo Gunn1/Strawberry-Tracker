@@ -112,6 +112,7 @@ function fmtTime(iso: string): string {
 export default function StrawberryRegister() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [cashier, setCashier] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
   const [mode, setMode] = useState<SaleMode>("QUART");
   const [qty, setQty] = useState<number>(1);
 
@@ -130,9 +131,10 @@ export default function StrawberryRegister() {
     let active = true;
     (async () => {
       try {
-        const [sRes, salesRes] = await Promise.all([
+        const [sRes, salesRes, meRes] = await Promise.all([
           fetch("/api/settings"),
           fetch("/api/sales"),
+          fetch("/api/me"),
         ]);
         if (!sRes.ok || !salesRes.ok) throw new Error("Failed to load");
         const s: Settings = await sRes.json();
@@ -140,6 +142,7 @@ export default function StrawberryRegister() {
         if (!active) return;
         setSettings(s);
         setSales(list);
+        if (meRes.ok) setCashier(await meRes.json());
       } catch {
         if (active) setError("Couldn't reach the server. Totals may be out of date.");
       } finally {
@@ -159,6 +162,8 @@ export default function StrawberryRegister() {
   }, [toast]);
 
   /* ---------- derived values ---------- */
+  const cashierName = cashier.name?.trim().split(/\s+/)[0] || cashier.email || "Cashier";
+  const recentSales = sales.slice(0, 5);
   const product = productFor(mode);
   const unitCents = settings[product.priceKey];
   const cost = Math.max(0, qty) * unitCents;
@@ -273,8 +278,8 @@ export default function StrawberryRegister() {
           ))}
         </svg>
         <div className="titles">
-          <h1>Strawberry Stand</h1>
-          <p>Ring up a sale &amp; make change</p>
+          <h1>Red Wagon Farm</h1>
+          <p>Register · <b>{cashierName}</b></p>
         </div>
         <Link className="gear" href="/admin" aria-label="Admin dashboard" title="Admin dashboard">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -386,7 +391,7 @@ export default function StrawberryRegister() {
       {/* Totals + log */}
       <div className="card">
         <div className="totals-head">
-          <h2>Today&apos;s sales</h2>
+          <h2>Your shift</h2>
           {loading && <span className="loading">Loading…</span>}
         </div>
         <div className="grid4">
@@ -405,15 +410,19 @@ export default function StrawberryRegister() {
           ))}
         </div>
 
+        <div className="recent-head">
+          <span className="rh-title">Recent</span>
+          {sales.length > 5 && <span className="rh-note">last 5 of {sales.length}</span>}
+        </div>
         <div className="salelist">
           {sales.length === 0 ? (
             <div className="empty">
-              No sales logged yet today.
+              You haven&apos;t logged any sales yet today.
               <br />
               Ring one up above to get started.
             </div>
           ) : (
-            sales.map((s) => {
+            recentSales.map((s) => {
               const sp = productFor(s.mode);
               const word = s.quantity === 1 ? sp.unit : `${sp.unit}s`;
               return (
@@ -470,6 +479,7 @@ export default function StrawberryRegister() {
         .berry { width: 42px; height: 42px; flex: 0 0 auto; }
         .titles h1 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.02em; line-height: 1; margin: 0; }
         .titles p { font-size: 12.5px; color: var(--muted); margin: 3px 0 0; font-weight: 500; }
+        .titles p b { color: var(--berry-deep); font-weight: 700; }
         .gear { margin-left: auto; background: var(--paper); border: 1.5px solid var(--line); width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--berry-deep); transition: border-color 0.15s, transform 0.1s; }
         .gear:hover { border-color: var(--berry); }
         .gear:active { transform: scale(0.94); }
@@ -544,7 +554,10 @@ export default function StrawberryRegister() {
         .sv { font-family: "Space Mono", monospace; font-weight: 700; font-size: 24px; margin-top: 3px; font-variant-numeric: tabular-nums; }
         .stat.rev .sv { color: var(--berry); }
 
-        .salelist { margin-top: 14px; display: flex; flex-direction: column; }
+        .recent-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 16px; padding-top: 14px; border-top: 2px dotted var(--line); }
+        .rh-title { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+        .rh-note { font-family: "Space Mono", monospace; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+        .salelist { margin-top: 4px; display: flex; flex-direction: column; }
         .sale { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 11px 2px; border-top: 1px solid var(--line); }
         .sale:first-child { border-top: none; }
         .sale .t { font-family: "Space Mono", monospace; font-size: 11.5px; color: var(--muted); font-weight: 700; }

@@ -56,12 +56,12 @@ function LoginInner() {
 
       <style jsx>{`
         .wrap { min-height: 100vh; display: grid; place-items: center; background: var(--paper); padding: 24px; font-family: var(--body); }
-        .card { width: 100%; max-width: 400px; background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 40px 32px 28px; text-align: center; box-shadow: var(--shadow-lg); }
-        .logo { width: 200px; height: auto; margin: 0 auto 8px; display: block; }
+        .card { width: 100%; max-width: 400px; background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 40px 32px 28px; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; align-items: center; }
+        .logo { width: 200px; height: auto; margin: 0 0 8px; }
         h1 { font-family: var(--display); font-weight: 600; font-size: 1.7rem; color: var(--ink); margin: 14px 0 4px; }
         .sub { color: var(--muted); font-size: .95rem; margin: 0 0 24px; }
-        .err { background: #fdeee7; border: 1px solid #f4d3c4; color: var(--wagon-deep); font-size: .88rem; font-weight: 500; padding: .7rem .9rem; border-radius: var(--r-md); margin: 0 0 18px; line-height: 1.45; }
-        .buttons { display: flex; flex-direction: column; gap: 12px; }
+        .err { background: #fdeee7; border: 1px solid #f4d3c4; color: var(--wagon-deep); font-size: .88rem; font-weight: 500; padding: .7rem .9rem; border-radius: var(--r-md); margin: 0 0 18px; line-height: 1.45; width: 100%; box-sizing: border-box; }
+        .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; }
         .oauth { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; font-family: var(--body); font-weight: 600; font-size: 1rem; color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: var(--r-md); padding: .85rem 1rem; cursor: pointer; transition: border-color .12s ease, background .12s ease; }
         .oauth:hover { border-color: var(--wagon); background: var(--paper); }
         .back { display: inline-block; margin-top: 22px; font-family: var(--data); font-size: .82rem; color: var(--muted); text-decoration: none; }

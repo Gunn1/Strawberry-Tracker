@@ -17,14 +17,14 @@ function startOfToday(): Date {
   return d;
 }
 
-// GET /api/sales -> today's sales, newest first
+// GET /api/sales -> the signed-in cashier's own sales for today, newest first.
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const prisma = getPrisma();
   try {
     const sales = await prisma.sale.findMany({
-      where: { createdAt: { gte: startOfToday() } },
+      where: { createdAt: { gte: startOfToday() }, cashierId: session.user.id },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(sales);
