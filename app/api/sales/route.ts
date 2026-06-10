@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const prisma = getPrisma();
 
-  let body: { mode?: SaleMode; quantity?: number; tenderedCents?: number };
+  let body: { mode?: SaleMode; quantity?: number; tenderedCents?: number; location?: string };
   try {
     body = await req.json();
   } catch {
@@ -73,6 +73,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Tendered amount is less than total" }, { status: 400 });
     }
 
+    const location = typeof body.location === "string" ? body.location.trim().slice(0, 60) || null : null;
+
     const sale = await prisma.sale.create({
       data: {
         mode,
@@ -82,6 +84,7 @@ export async function POST(req: Request) {
         tenderedCents: tenderedCents as number,
         changeCents: (tenderedCents as number) - totalCents,
         cashierId: session?.user?.id ?? null,
+        location,
       },
     });
 

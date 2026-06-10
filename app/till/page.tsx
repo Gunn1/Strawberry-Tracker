@@ -18,6 +18,12 @@ interface Sale {
   totalCents: number;
   tenderedCents: number;
   changeCents: number;
+  location?: string | null;
+}
+
+interface Loc {
+  id: string;
+  name: string;
 }
 
 interface Settings {
@@ -113,6 +119,8 @@ export default function StrawberryRegister() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [sales, setSales] = useState<Sale[]>([]);
   const [cashier, setCashier] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
+  const [locations, setLocations] = useState<Loc[]>([]);
+  const [location, setLocation] = useState<string>("");
   const [mode, setMode] = useState<SaleMode>("QUART");
   const [qty, setQty] = useState<number>(1);
 
@@ -131,10 +139,11 @@ export default function StrawberryRegister() {
     let active = true;
     (async () => {
       try {
-        const [sRes, salesRes, meRes] = await Promise.all([
+        const [sRes, salesRes, meRes, locRes] = await Promise.all([
           fetch("/api/settings"),
           fetch("/api/sales"),
           fetch("/api/me"),
+          fetch("/api/locations"),
         ]);
         if (!sRes.ok || !salesRes.ok) throw new Error("Failed to load");
         const s: Settings = await sRes.json();
@@ -143,6 +152,12 @@ export default function StrawberryRegister() {
         setSettings(s);
         setSales(list);
         if (meRes.ok) setCashier(await meRes.json());
+        if (locRes.ok) {
+          const locs: Loc[] = await locRes.json();
+          setLocations(locs);
+          const saved = typeof window !== "undefined" ? localStorage.getItem("till-location") : null;
+          setLocation(locs.find((l) => l.name === saved)?.name ?? locs[0]?.name ?? "");
+        }
       } catch {
         if (active) setError("Couldn't reach the server. Totals may be out of date.");
       } finally {
@@ -203,6 +218,10 @@ export default function StrawberryRegister() {
   /* ---------- actions ---------- */
   const switchMode = (m: SaleMode) => setMode(m);
   const bump = (delta: number) => setQty((q) => Math.max(0, q + delta));
+  const chooseLocation = (name: string) => {
+    setLocation(name);
+    if (typeof window !== "undefined") localStorage.setItem("till-location", name);
+  };
 
   // Quick-add chips bump the typed cash amount up by a bill/coin value.
   const addCash = (cents: number) =>
@@ -220,7 +239,7 @@ export default function StrawberryRegister() {
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, quantity: qty, tenderedCents }),
+        body: JSON.stringify({ mode, quantity: qty, tenderedCents, location: location || undefined }),
       });
       if (!res.ok) throw new Error("save failed");
       const created: Sale = await res.json();
@@ -233,7 +252,7 @@ export default function StrawberryRegister() {
     } finally {
       setSaving(false);
     }
-  }, [cost, saving, hasTender, tendered, mode, qty]);
+  }, [cost, saving, hasTender, tendered, mode, qty, location]);
 
   const voidSale = useCallback(async (id: string) => {
     if (typeof window !== "undefined" && !window.confirm("Void this sale? It will be removed from today's totals.")) {
@@ -289,6 +308,23 @@ export default function StrawberryRegister() {
       </header>
 
       {error && <div className="banner">{error}</div>}
+
+      {locations.length > 0 && (
+        <div className="locbar">
+          <span className="loclabel">Selling at</span>
+          <div className="locchips">
+            {locations.map((l) => (
+              <button
+                key={l.id}
+                className={location === l.name ? "on" : ""}
+                onClick={() => chooseLocation(l.name)}
+              >
+                {l.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Register */}
       <div className="card">
@@ -485,6 +521,14 @@ export default function StrawberryRegister() {
         .gear:active { transform: scale(0.94); }
 
         .banner { background: #fdeee7; border: 1.5px solid #f4d3c4; color: var(--warn); font-size: 13px; font-weight: 600; padding: 11px 14px; border-radius: 13px; margin-bottom: 14px; }
+
+        .locbar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 14px; padding: 12px 14px; background: var(--cream); border: 1.5px solid var(--line); border-radius: 16px; }
+        .loclabel { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+        .locchips { display: flex; gap: 7px; flex-wrap: wrap; }
+        .locchips button { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 13.5px; padding: 8px 14px; border: 1.5px solid var(--line); background: #fff; border-radius: 999px; color: var(--berry-deep); cursor: pointer; transition: all 0.12s; }
+        .locchips button:hover { border-color: var(--berry); }
+        .locchips button:active { transform: scale(0.95); }
+        .locchips button.on { background: var(--berry); color: #fff; border-color: var(--berry); box-shadow: 0 3px 10px rgba(196, 30, 58, 0.25); }
 
         .card { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 0 rgba(196, 30, 58, 0.04); }
         .card h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0; }

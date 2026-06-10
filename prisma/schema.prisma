@@ -134,8 +134,18 @@ model Sale {
   cashierId      String?
   cashier        User?    @relation(fields: [cashierId], references: [id])
 
+  location       String?  // where the sale happened (e.g. "The Farm", a market), stored by name
+
   @@index([createdAt])
   @@index([cashierId])
+}
+
+// Selling locations the till can ring up at (the farm, farmers markets, etc.).
+model Location {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 // A bookable U-pick window on a given day. Times are wall-clock minutes from
