@@ -1,7 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+
+// Charts are client-only (Recharts) — keep them off the Workers server render.
+const RevenueBars = dynamic(() => import("./Charts").then((m) => m.RevenueBars), {
+  ssr: false,
+  loading: () => <div className="chartph" />,
+});
+const DayBars = dynamic(() => import("./Charts").then((m) => m.DayBars), {
+  ssr: false,
+  loading: () => <div className="chartph" style={{ height: 220 }} />,
+});
 
 /* ------------------------------------------------------------------ */
 /* Types + helpers                                                     */
@@ -40,11 +51,6 @@ function fmt(cents: number): string {
   return cents < 0 ? `-${s}` : s;
 }
 
-function dayLabel(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-}
-
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -77,7 +83,6 @@ export default function SalesReportPage() {
   }, [range]);
 
   const avg = data && data.count > 0 ? Math.round(data.revenue / data.count) : 0;
-  const maxDay = data ? Math.max(1, ...data.byDay.map((d) => d.revenue)) : 1;
 
   return (
     <div className="report">
@@ -148,6 +153,7 @@ export default function SalesReportPage() {
 
             {/* who sold what */}
             <h2 className="sub">By cashier</h2>
+            <RevenueBars data={data.byCashier.map((c) => ({ name: c.name, revenue: c.revenue }))} />
             <div className="cashiers">
               {data.byCashier.map((c) => {
                 const units = PRODUCTS.filter((p) => c.units[p.mode] > 0)
@@ -170,17 +176,7 @@ export default function SalesReportPage() {
             {data.byLocation.length > 1 && (
               <>
                 <h2 className="sub">By location</h2>
-                <div className="cashiers">
-                  {data.byLocation.map((l) => (
-                    <div className="cashrow" key={l.name}>
-                      <div className="cinfo">
-                        <span className="cname">{l.name}</span>
-                      </div>
-                      <span className="ccount mono">{l.count} sale{l.count === 1 ? "" : "s"}</span>
-                      <span className="crev">{fmt(l.revenue)}</span>
-                    </div>
-                  ))}
-                </div>
+                <RevenueBars data={data.byLocation.map((l) => ({ name: l.name, revenue: l.revenue }))} />
               </>
             )}
 
@@ -188,16 +184,7 @@ export default function SalesReportPage() {
             {data.byDay.length > 1 && (
               <>
                 <h2 className="sub">By day</h2>
-                <div className="days">
-                  {data.byDay.map((d) => (
-                    <div className="dayrow" key={d.date}>
-                      <span className="dlabel">{dayLabel(d.date)}</span>
-                      <div className="dbar"><span style={{ width: `${Math.round((d.revenue / maxDay) * 100)}%` }} /></div>
-                      <span className="dcount mono">{d.count}</span>
-                      <span className="drev mono">{fmt(d.revenue)}</span>
-                    </div>
-                  ))}
-                </div>
+                <DayBars data={[...data.byDay].reverse()} />
               </>
             )}
           </>
@@ -257,6 +244,7 @@ export default function SalesReportPage() {
         .drawernote { margin-top: .8rem; font-size: .76rem; color: var(--muted); }
 
         .sub { font-family: var(--display); font-weight: 600; font-size: 1.25rem; margin: 2rem 0 .9rem; }
+        .chartph { min-height: 110px; }
 
         .products { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; }
         .product { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 1rem; }
