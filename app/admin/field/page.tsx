@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+type RowStatus = "OPEN" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
+
 interface Row {
   id: string;
   label: string;
   sortOrder: number;
   pickedStart: number;
   pickedEnd: number;
+  status: RowStatus;
+  note: string | null;
 }
 interface Patch {
   id: string;
@@ -19,16 +23,31 @@ interface Patch {
 
 const SNAP = 5; // %
 
+const STATUS_ORDER: RowStatus[] = ["OPEN", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
+const STATUS_META: Record<RowStatus, { label: string; color: string; bg: string }> = {
+  OPEN: { label: "Open", color: "#4f7a33", bg: "#e7f1da" },
+  CLOSED: { label: "Closed", color: "#5b5b5b", bg: "#e9e9e9" },
+  RESTING: { label: "Resting", color: "#2f6f8f", bg: "#dbebf3" },
+  PICKED_OUT: { label: "Picked out", color: "#9e2a20", bg: "#fbe3df" },
+  NEEDS_ATTENTION: { label: "Needs attention", color: "#8a5a0c", bg: "#fbeccb" },
+};
+
 /* ---- one draggable row strip ---- */
 function RowStrip({
   row,
   editable,
+  isAdmin,
   onCommit,
+  onStatus,
+  onNote,
   onDelete,
 }: {
   row: Row;
   editable: boolean;
+  isAdmin: boolean;
   onCommit: (start: number, end: number) => void;
+  onStatus: (status: RowStatus) => void;
+  onNote: (note: string) => void;
   onDelete?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -104,27 +123,68 @@ function RowStrip({
   };
 
   const fresh = Math.max(0, 100 - vals.start - vals.end);
+  const meta = STATUS_META[row.status];
+  const dimmed = row.status === "CLOSED" || row.status === "RESTING";
+  const showStatusLine = isAdmin || row.status !== "OPEN" || !!row.note;
 
   return (
-    <div className="rowline">
-      <span className="rlabel">{row.label}</span>
-      <div className={`strip ${editable ? "editable" : ""}`} ref={ref} onPointerDown={onDown}>
-        <span className="seg picked" style={{ width: `${vals.start}%` }} />
-        <span className="seg fresh" style={{ width: `${fresh}%` }} />
-        <span className="seg picked" style={{ width: `${vals.end}%` }} />
-        {editable && <i className="handle" style={{ left: `${vals.start}%` }} />}
-        {editable && <i className="handle" style={{ left: `${100 - vals.end}%` }} />}
+    <div className="rowline" style={{ borderLeftColor: meta.color }}>
+      <div className="rmain">
+        <span className="rlabel">{row.label}</span>
+        <div className={`strip ${editable ? "editable" : ""} ${dimmed ? "dim" : ""}`} ref={ref} onPointerDown={onDown}>
+          <span className="seg picked" style={{ width: `${vals.start}%` }} />
+          <span className="seg fresh" style={{ width: `${fresh}%` }} />
+          <span className="seg picked" style={{ width: `${vals.end}%` }} />
+          {editable && <i className="handle" style={{ left: `${vals.start}%` }} />}
+          {editable && <i className="handle" style={{ left: `${100 - vals.end}%` }} />}
+        </div>
+        <span className={`rpct ${fresh === 0 ? "out" : fresh < 30 ? "low" : ""}`}>
+          {fresh === 0 ? "done" : `${fresh}%`}
+        </span>
+        {onDelete && <button className="rx" onClick={onDelete} aria-label="Delete row">×</button>}
       </div>
-      <span className={`rpct ${fresh === 0 ? "out" : fresh < 30 ? "low" : ""}`}>
-        {fresh === 0 ? "done" : `${fresh}%`}
-      </span>
-      {onDelete && <button className="rx" onClick={onDelete} aria-label="Delete row">×</button>}
+
+      {showStatusLine && (
+        <div className="rstatus">
+          {isAdmin ? (
+            <select
+              className="ssel"
+              value={row.status}
+              onChange={(e) => onStatus(e.target.value as RowStatus)}
+              style={{ color: meta.color, background: meta.bg, borderColor: meta.color }}
+            >
+              {STATUS_ORDER.map((s) => (
+                <option key={s} value={s}>{STATUS_META[s].label}</option>
+              ))}
+            </select>
+          ) : (
+            row.status !== "OPEN" && (
+              <span className="pill" style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
+            )
+          )}
+          {isAdmin && row.status === "NEEDS_ATTENTION" ? (
+            <input
+              className="noteinput"
+              placeholder="Note (optional)"
+              defaultValue={row.note ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v !== (row.note ?? "")) onNote(v);
+              }}
+            />
+          ) : (
+            row.note && <span className="notetext">{row.note}</span>
+          )}
+        </div>
+      )}
 
       <style jsx>{`
-        .rowline { display: flex; align-items: center; gap: .6rem; padding: 3px 0; }
+        .rowline { border-left: 4px solid transparent; padding-left: .55rem; }
+        .rmain { display: flex; align-items: center; gap: .6rem; padding: 3px 0; }
         .rlabel { width: 3.4rem; flex: none; font-family: var(--data); font-size: .78rem; font-weight: 700; color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .strip { position: relative; flex: 1; display: flex; height: 38px; border-radius: 5px; overflow: hidden; background: #d9c7a6; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
         .strip.editable { cursor: ew-resize; touch-action: none; }
+        .strip.dim { opacity: .5; }
         .seg { display: block; height: 100%; }
         .seg.picked { background: repeating-linear-gradient(90deg, #d6c4a2, #d6c4a2 6px, #cdba95 6px, #cdba95 12px); }
         .seg.fresh { background: #6f9e4a; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
@@ -134,7 +194,13 @@ function RowStrip({
         .rpct.out { color: var(--wagon-deep); }
         .rx { width: 24px; height: 24px; flex: none; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 6px; font-size: .95rem; line-height: 1; cursor: pointer; }
         .rx:hover { border-color: var(--wagon); color: var(--wagon); }
-        @media (max-width: 480px) { .rlabel { width: 2.6rem; font-size: .72rem; } .strip { height: 34px; } }
+        .rstatus { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; padding: 0 0 5px 4.4rem; }
+        .ssel { font-family: var(--data); font-size: .72rem; font-weight: 700; padding: .25em 1.6em .25em .6em; border: 1.5px solid; border-radius: 999px; cursor: pointer; appearance: none; }
+        .pill { font-family: var(--data); font-size: .68rem; font-weight: 700; padding: .28em .7em; border-radius: 999px; text-transform: uppercase; letter-spacing: .03em; }
+        .noteinput { font-family: var(--body); font-size: .82rem; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: 7px; min-width: 11rem; background: #fff; }
+        .noteinput:focus { outline: none; border-color: var(--wagon); }
+        .notetext { font-family: var(--data); font-size: .74rem; color: var(--muted); font-style: italic; }
+        @media (max-width: 480px) { .rlabel { width: 2.6rem; font-size: .72rem; } .strip { height: 34px; } .rstatus { padding-left: 3.4rem; } }
       `}</style>
     </div>
   );
@@ -200,6 +266,24 @@ export default function FieldPage() {
     } catch {
       setError("Couldn't save — reloading.");
       reload();
+    }
+  }
+
+  async function updateRowFields(patchId: string, rowId: string, body: Record<string, unknown>) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/field/rows/${rowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      const updated: Row = await res.json();
+      setPatches((prev) =>
+        prev.map((p) => (p.id === patchId ? { ...p, rows: p.rows.map((r) => (r.id === rowId ? { ...r, ...updated } : r)) } : p)),
+      );
+    } catch {
+      setError("Couldn't update that row.");
     }
   }
 
@@ -292,7 +376,10 @@ export default function FieldPage() {
                       key={r.id}
                       row={r}
                       editable
+                      isAdmin={isAdmin}
                       onCommit={(s, e) => commitRow(p.id, r.id, s, e)}
+                      onStatus={(s) => updateRowFields(p.id, r.id, { status: s })}
+                      onNote={(n) => updateRowFields(p.id, r.id, { note: n })}
                       onDelete={isAdmin ? () => deleteRow(r) : undefined}
                     />
                   ))

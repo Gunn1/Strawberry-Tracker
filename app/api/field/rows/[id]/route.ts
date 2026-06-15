@@ -16,7 +16,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const prisma = getPrisma();
   const { id } = await ctx.params;
 
-  let body: { pickedStart?: number; pickedEnd?: number; label?: string };
+  let body: { pickedStart?: number; pickedEnd?: number; label?: string; status?: string; note?: string | null };
   try {
     body = await req.json();
   } catch {
@@ -26,7 +26,27 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const existing = await prisma.fieldRow.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Row not found" }, { status: 404 });
 
-  const data: { pickedStart?: number; pickedEnd?: number; label?: string } = {};
+  const STATUSES = ["OPEN", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
+  const data: {
+    pickedStart?: number;
+    pickedEnd?: number;
+    label?: string;
+    status?: "OPEN" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
+    note?: string | null;
+  } = {};
+
+  // Status and note are admin-only.
+  if (body.status !== undefined || body.note !== undefined) {
+    if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (body.status !== undefined) {
+      if (!STATUSES.includes(body.status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      data.status = body.status as typeof data.status;
+    }
+    if (body.note !== undefined) {
+      const note = body.note ? String(body.note).trim().slice(0, 120) : "";
+      data.note = note || null;
+    }
+  }
 
   if (body.pickedStart !== undefined || body.pickedEnd !== undefined) {
     let start = body.pickedStart !== undefined ? clampPct(body.pickedStart) : existing.pickedStart;

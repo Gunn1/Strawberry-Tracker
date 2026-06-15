@@ -197,16 +197,26 @@ model Patch {
   createdAt DateTime   @default(now())
 }
 
+enum RowStatus {
+  OPEN
+  CLOSED
+  RESTING
+  PICKED_OUT
+  NEEDS_ATTENTION
+}
+
 model FieldRow {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   patchId     String
-  patch       Patch    @relation(fields: [patchId], references: [id], onDelete: Cascade)
+  patch       Patch     @relation(fields: [patchId], references: [id], onDelete: Cascade)
   label       String
-  sortOrder   Int      @default(0)
-  pickedStart Int      @default(0) // % of the row picked inward from the start end (0-100)
-  pickedEnd   Int      @default(0) // % of the row picked inward from the far end (0-100)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sortOrder   Int       @default(0)
+  pickedStart Int       @default(0) // % of the row picked inward from the start end (0-100)
+  pickedEnd   Int       @default(0) // % of the row picked inward from the far end (0-100)
+  status      RowStatus @default(OPEN)
+  note        String? // short note, e.g. why it needs attention
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([patchId])
 }
