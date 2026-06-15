@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Row {
   id: string;
@@ -45,41 +45,62 @@ function RowStrip({
     }
   }, [row.pickedStart, row.pickedEnd]);
 
-  const pctAt = (clientX: number) => {
+  const onCommitRef = useRef(onCommit);
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+  });
+
+  const pctAt = useCallback((clientX: number) => {
     const el = ref.current;
     if (!el) return 0;
     const rect = el.getBoundingClientRect();
     const pct = ((clientX - rect.left) / rect.width) * 100;
     return Math.max(0, Math.min(100, Math.round(pct / SNAP) * SNAP));
-  };
+  }, []);
 
-  const apply = (which: "start" | "end", pct: number) =>
-    setVals((prev) => {
-      const next =
-        which === "start"
-          ? { ...prev, start: Math.max(0, Math.min(100 - prev.end, pct)) }
-          : { ...prev, end: Math.max(0, Math.min(100 - prev.start, 100 - pct)) };
-      valsRef.current = next;
-      return next;
-    });
+  const apply = useCallback(
+    (which: "start" | "end", pct: number) =>
+      setVals((prev) => {
+        const next =
+          which === "start"
+            ? { ...prev, start: Math.max(0, Math.min(100 - prev.end, pct)) }
+            : { ...prev, end: Math.max(0, Math.min(100 - prev.start, 100 - pct)) };
+        valsRef.current = next;
+        return next;
+      }),
+    [],
+  );
+
+  // Track the drag on the window so it keeps following the pointer even if it
+  // leaves the thin strip or the row re-renders mid-drag.
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      if (!dragRef.current) return;
+      apply(dragRef.current, pctAt(e.clientX));
+    };
+    const up = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      onCommitRef.current(valsRef.current.start, valsRef.current.end);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, [apply, pctAt]);
 
   const onDown = (e: React.PointerEvent) => {
     if (!editable) return;
+    e.preventDefault();
     const pct = pctAt(e.clientX);
-    // move whichever end's handle is closer to the tap
-    const which = Math.abs(pct - vals.start) <= Math.abs(pct - (100 - vals.end)) ? "start" : "end";
+    // grab whichever end's handle is closer to where you pressed
+    const which = Math.abs(pct - valsRef.current.start) <= Math.abs(pct - (100 - valsRef.current.end)) ? "start" : "end";
     dragRef.current = which;
     apply(which, pct);
-    ref.current?.setPointerCapture(e.pointerId);
-  };
-  const onMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    apply(dragRef.current, pctAt(e.clientX));
-  };
-  const onUp = () => {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    onCommit(valsRef.current.start, valsRef.current.end);
   };
 
   const fresh = Math.max(0, 100 - vals.start - vals.end);
@@ -87,14 +108,7 @@ function RowStrip({
   return (
     <div className="rowline">
       <span className="rlabel">{row.label}</span>
-      <div
-        className={`strip ${editable ? "editable" : ""}`}
-        ref={ref}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-      >
+      <div className={`strip ${editable ? "editable" : ""}`} ref={ref} onPointerDown={onDown}>
         <span className="seg picked" style={{ width: `${vals.start}%` }} />
         <span className="seg fresh" style={{ width: `${fresh}%` }} />
         <span className="seg picked" style={{ width: `${vals.end}%` }} />
