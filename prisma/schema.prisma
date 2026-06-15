@@ -207,18 +207,34 @@ enum RowStatus {
 }
 
 model FieldRow {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   patchId     String
-  patch       Patch     @relation(fields: [patchId], references: [id], onDelete: Cascade)
+  patch       Patch      @relation(fields: [patchId], references: [id], onDelete: Cascade)
   label       String
-  sortOrder   Int       @default(0)
-  pickedStart Int       @default(0) // % of the row picked inward from the start end (0-100)
-  pickedEnd   Int       @default(0) // % of the row picked inward from the far end (0-100)
-  status      RowStatus @default(OPEN)
+  variety     String? // strawberry variety, e.g. Honeoye / Jewel / Albion
+  sortOrder   Int        @default(0)
+  pickedStart Int        @default(0) // % of the row picked inward from the start end (0-100)
+  pickedEnd   Int        @default(0) // % of the row picked inward from the far end (0-100)
+  status      RowStatus  @default(OPEN)
   note        String? // short note, e.g. why it needs attention
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  events      RowEvent[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([patchId])
+}
+
+// A point-in-time snapshot of a row, recorded on each pick/status change.
+model RowEvent {
+  id          String    @id @default(cuid())
+  rowId       String
+  row         FieldRow  @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  pickedStart Int
+  pickedEnd   Int
+  status      RowStatus
+  userName    String? // who made the change (name/email at the time)
+  createdAt   DateTime  @default(now())
+
+  @@index([rowId, createdAt])
 }
 

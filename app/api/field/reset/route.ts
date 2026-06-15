@@ -20,10 +20,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    await prisma.fieldRow.updateMany({
-      where: patchId ? { patchId } : {},
-      data: { pickedStart: 0, pickedEnd: 0 },
-    });
+    const where = patchId ? { patchId } : {};
+    await prisma.fieldRow.updateMany({ where, data: { pickedStart: 0, pickedEnd: 0 } });
+    // Log the reset (back to fresh) in each row's history.
+    const rows = await prisma.fieldRow.findMany({ where, select: { id: true, status: true } });
+    if (rows.length) {
+      const userName = session.user.name || session.user.email || null;
+      await prisma.rowEvent.createMany({
+        data: rows.map((r) => ({ rowId: r.id, pickedStart: 0, pickedEnd: 0, status: r.status, userName })),
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Couldn't reset the field." }, { status: 500 });

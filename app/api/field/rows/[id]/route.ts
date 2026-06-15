@@ -16,7 +16,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const prisma = getPrisma();
   const { id } = await ctx.params;
 
-  let body: { pickedStart?: number; pickedEnd?: number; label?: string; status?: string; note?: string | null };
+  let body: {
+    pickedStart?: number;
+    pickedEnd?: number;
+    label?: string;
+    status?: string;
+    note?: string | null;
+    variety?: string | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -33,10 +40,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     label?: string;
     status?: "OPEN" | "STAFF_PICKING" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
     note?: string | null;
+    variety?: string | null;
   } = {};
 
-  // Status and note are admin-only.
-  if (body.status !== undefined || body.note !== undefined) {
+  // Status, note, and variety are admin-only.
+  if (body.status !== undefined || body.note !== undefined || body.variety !== undefined) {
     if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (body.status !== undefined) {
       if (!STATUSES.includes(body.status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
@@ -45,6 +53,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (body.note !== undefined) {
       const note = body.note ? String(body.note).trim().slice(0, 120) : "";
       data.note = note || null;
+    }
+    if (body.variety !== undefined) {
+      const variety = body.variety ? String(body.variety).trim().slice(0, 40) : "";
+      data.variety = variety || null;
     }
   }
 
@@ -73,6 +85,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   try {
     const row = await prisma.fieldRow.update({ where: { id }, data });
+    // Record history when picking or status actually changes.
+    const pickedChanged = (data.pickedStart !== undefined && data.pickedStart !== existing.pickedStart) ||
+      (data.pickedEnd !== undefined && data.pickedEnd !== existing.pickedEnd);
+    const statusChanged = data.status !== undefined && data.status !== existing.status;
+    if (pickedChanged || statusChanged) {
+      await prisma.rowEvent.create({
+        data: {
+          rowId: id,
+          pickedStart: row.pickedStart,
+          pickedEnd: row.pickedEnd,
+          status: row.status,
+          userName: session.user.name || session.user.email || null,
+        },
+      });
+    }
     return NextResponse.json(row);
   } catch {
     return NextResponse.json({ error: "Couldn't update that row." }, { status: 500 });

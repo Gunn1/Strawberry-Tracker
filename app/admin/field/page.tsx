@@ -7,11 +7,21 @@ type RowStatus = "OPEN" | "STAFF_PICKING" | "CLOSED" | "RESTING" | "PICKED_OUT" 
 interface Row {
   id: string;
   label: string;
+  variety: string | null;
   sortOrder: number;
   pickedStart: number;
   pickedEnd: number;
   status: RowStatus;
   note: string | null;
+}
+
+interface RowEvent {
+  id: string;
+  pickedStart: number;
+  pickedEnd: number;
+  status: RowStatus;
+  userName: string | null;
+  createdAt: string;
 }
 interface Patch {
   id: string;
@@ -34,6 +44,91 @@ const STATUS_META: Record<RowStatus, { label: string; color: string; bg: string;
   NEEDS_ATTENTION: { label: "Needs attention", color: "#8a5a0c", bg: "#fbeccb", fill: "#d9a441" },
 };
 
+/* ---- per-row history (how much picked over time) ---- */
+function HistoryModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  const [events, setEvents] = useState<RowEvent[] | null>(null);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/field/rows/${row.id}/history`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((e) => active && setEvents(e))
+      .catch(() => active && setErr(true));
+    return () => {
+      active = false;
+    };
+  }, [row.id]);
+
+  const chrono = events ? [...events].reverse() : [];
+  const W = 320;
+  const H = 70;
+  const pts = chrono.map((e, i) => {
+    const x = chrono.length <= 1 ? W : (i / (chrono.length - 1)) * W;
+    const total = Math.min(100, e.pickedStart + e.pickedEnd);
+    return `${x.toFixed(1)},${(H - (total / 100) * H).toFixed(1)}`;
+  });
+
+  return (
+    <div className="hoverlay" onClick={onClose}>
+      <div className="hmodal" onClick={(e) => e.stopPropagation()}>
+        <div className="hhead">
+          <h3>{row.label}{row.variety ? <span className="hvar"> · {row.variety}</span> : null}</h3>
+          <button className="hclose" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        {err ? (
+          <p className="hmsg">Couldn&apos;t load history.</p>
+        ) : !events ? (
+          <p className="hmsg">Loading…</p>
+        ) : events.length === 0 ? (
+          <p className="hmsg">No changes recorded yet.</p>
+        ) : (
+          <>
+            <p className="hcap">Picked over time</p>
+            <svg viewBox={`0 0 ${W} ${H}`} className="hchart" preserveAspectRatio="none">
+              <line x1="0" y1={H - 0.5} x2={W} y2={H - 0.5} stroke="#e4d8c2" />
+              <polyline points={pts.join(" ")} fill="none" stroke="#9e2a20" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <ul className="htl">
+              {events.map((e) => {
+                const total = Math.min(100, e.pickedStart + e.pickedEnd);
+                return (
+                  <li key={e.id}>
+                    <span className="ht">{new Date(e.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                    <span className="hd">
+                      picked <b>{total}%</b> <small>({e.pickedStart}+{e.pickedEnd}) · {STATUS_META[e.status].label}</small>
+                    </span>
+                    {e.userName && <span className="hwho">{e.userName}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
+        <style jsx>{`
+          .hoverlay { position: fixed; inset: 0; background: rgba(39,31,23,0.5); display: flex; align-items: center; justify-content: center; padding: 18px; z-index: 60; }
+          .hmodal { background: var(--paper); border-radius: var(--r-lg); padding: 20px 20px 18px; max-width: 420px; width: 100%; max-height: 80vh; overflow: auto; box-shadow: var(--shadow-lg); }
+          .hhead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+          .hhead h3 { font-family: var(--display); font-weight: 600; font-size: 1.25rem; margin: 0; }
+          .hvar { font-family: var(--data); font-size: .85rem; color: var(--muted); font-weight: 400; }
+          .hclose { width: 32px; height: 32px; flex: none; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 8px; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+          .hmsg { font-family: var(--data); color: var(--muted); margin: 1.4rem 0; }
+          .hcap { font-family: var(--data); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 1.1rem 0 .4rem; }
+          .hchart { width: 100%; height: 70px; display: block; }
+          .htl { list-style: none; margin: 1rem 0 0; padding: 0; }
+          .htl li { display: flex; align-items: baseline; gap: .7rem; padding: .5rem 0; border-top: 1px solid var(--line); font-size: .85rem; }
+          .ht { font-family: var(--data); font-size: .72rem; color: var(--muted); white-space: nowrap; flex: none; width: 7rem; }
+          .hd { flex: 1; }
+          .hd small { color: var(--muted); font-family: var(--data); font-size: .72rem; }
+          .hwho { font-family: var(--data); font-size: .72rem; color: var(--muted); white-space: nowrap; }
+        `}</style>
+      </div>
+    </div>
+  );
+}
+
 /* ---- one draggable row strip ---- */
 function RowStrip({
   row,
@@ -42,6 +137,8 @@ function RowStrip({
   onCommit,
   onStatus,
   onNote,
+  onVariety,
+  onHistory,
   onDelete,
 }: {
   row: Row;
@@ -50,6 +147,8 @@ function RowStrip({
   onCommit: (start: number, end: number) => void;
   onStatus: (status: RowStatus) => void;
   onNote: (note: string) => void;
+  onVariety: (variety: string) => void;
+  onHistory: () => void;
   onDelete?: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -126,7 +225,7 @@ function RowStrip({
 
   const fresh = Math.max(0, 100 - vals.start - vals.end);
   const meta = STATUS_META[row.status];
-  const showStatusLine = isAdmin || row.status !== "OPEN" || !!row.note;
+  const showStatusLine = isAdmin || row.status !== "OPEN" || !!row.note || !!row.variety;
 
   return (
     <div className="rowline" style={{ borderLeftColor: meta.color }}>
@@ -142,6 +241,11 @@ function RowStrip({
         <span className={`rpct ${fresh === 0 ? "out" : fresh < 30 ? "low" : ""}`}>
           {fresh === 0 ? "done" : `${fresh}%`}
         </span>
+        <button className="rhist" onClick={onHistory} aria-label="Row history" title="History">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+          </svg>
+        </button>
         {onDelete && <button className="rx" onClick={onDelete} aria-label="Delete row">×</button>}
       </div>
 
@@ -162,6 +266,19 @@ function RowStrip({
             row.status !== "OPEN" && (
               <span className="pill" style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
             )
+          )}
+          {isAdmin ? (
+            <input
+              className="varinput"
+              placeholder="Variety"
+              defaultValue={row.variety ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v !== (row.variety ?? "")) onVariety(v);
+              }}
+            />
+          ) : (
+            row.variety && <span className="varchip">{row.variety}</span>
           )}
           {isAdmin && row.status === "NEEDS_ATTENTION" ? (
             <input
@@ -194,6 +311,11 @@ function RowStrip({
         .rpct.out { color: var(--wagon-deep); }
         .rx { width: 24px; height: 24px; flex: none; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 6px; font-size: .95rem; line-height: 1; cursor: pointer; }
         .rx:hover { border-color: var(--wagon); color: var(--wagon); }
+        .rhist { width: 26px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 6px; cursor: pointer; }
+        .rhist:hover { border-color: var(--wagon-deep); color: var(--wagon-deep); }
+        .varinput { font-family: var(--body); font-size: .8rem; padding: .25rem .5rem; border: 1px solid var(--line); border-radius: 7px; background: #fff; width: 8rem; }
+        .varinput:focus { outline: none; border-color: var(--wagon); }
+        .varchip { font-family: var(--data); font-size: .72rem; font-weight: 700; color: var(--wagon-deep); background: #fdeee7; padding: .25em .6em; border-radius: 999px; }
         .rstatus { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; padding: 0 0 5px 4.4rem; }
         .ssel { font-family: var(--data); font-size: .72rem; font-weight: 700; padding: .25em 1.6em .25em .6em; border: 1.5px solid; border-radius: 999px; cursor: pointer; appearance: none; }
         .pill { font-family: var(--data); font-size: .68rem; font-weight: 700; padding: .28em .7em; border-radius: 999px; text-transform: uppercase; letter-spacing: .03em; }
@@ -214,6 +336,7 @@ export default function FieldPage() {
   const [toast, setToast] = useState("");
   const [newPatch, setNewPatch] = useState("");
   const [newRow, setNewRow] = useState<Record<string, string>>({});
+  const [historyRow, setHistoryRow] = useState<Row | null>(null);
 
   async function reload() {
     try {
@@ -317,6 +440,11 @@ export default function FieldPage() {
     if (typeof window !== "undefined" && !window.confirm(`Delete "${p.name}" and its ${p.rows.length} row(s)?`)) return;
     await adminAction(`/api/field/patches/${p.id}`, "DELETE", undefined, reload);
   };
+  const setPatchVariety = async (p: Patch) => {
+    const v = typeof window !== "undefined" ? window.prompt(`Set the variety for every row in "${p.name}"`, p.rows[0]?.variety ?? "") : null;
+    if (v === null) return;
+    await adminAction(`/api/field/patches/${p.id}`, "PATCH", { variety: v.trim() }, () => { setToast("Variety set"); reload(); });
+  };
   const addRow = async (patchId: string) => {
     const label = (newRow[patchId] ?? "").trim();
     if (!label) return;
@@ -360,6 +488,7 @@ export default function FieldPage() {
                 <h2>{p.name}</h2>
                 {isAdmin && (
                   <div className="padmin">
+                    <button onClick={() => setPatchVariety(p)}>Variety</button>
                     <button onClick={() => resetPatch(p)}>Reset</button>
                     <button onClick={() => renamePatch(p)}>Rename</button>
                     <button className="danger" onClick={() => deletePatch(p)}>Delete</button>
@@ -380,6 +509,8 @@ export default function FieldPage() {
                       onCommit={(s, e) => commitRow(p.id, r.id, s, e)}
                       onStatus={(s) => updateRowFields(p.id, r.id, { status: s })}
                       onNote={(n) => updateRowFields(p.id, r.id, { note: n })}
+                      onVariety={(v) => updateRowFields(p.id, r.id, { variety: v })}
+                      onHistory={() => setHistoryRow(r)}
                       onDelete={isAdmin ? () => deleteRow(r) : undefined}
                     />
                   ))
@@ -404,6 +535,7 @@ export default function FieldPage() {
         )}
       </div>
 
+      {historyRow && <HistoryModal row={historyRow} onClose={() => setHistoryRow(null)} />}
       {toast && <div className="toast">{toast}</div>}
 
       <style jsx>{`

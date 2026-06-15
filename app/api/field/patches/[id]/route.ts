@@ -17,20 +17,33 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const prisma = getPrisma();
   const { id } = await ctx.params;
 
-  let body: { name?: string };
+  let body: { name?: string; variety?: string | null };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const name = (body.name ?? "").trim().slice(0, 40);
-  if (!name) return NextResponse.json({ error: "Name can't be empty." }, { status: 400 });
 
   try {
-    const patch = await prisma.patch.update({ where: { id }, data: { name }, include: { rows: true } });
+    // Apply a variety to every row in the patch (a quick "set for whole patch").
+    if (body.variety !== undefined) {
+      const variety = body.variety ? String(body.variety).trim().slice(0, 40) || null : null;
+      await prisma.fieldRow.updateMany({ where: { patchId: id }, data: { variety } });
+    }
+    const data: { name?: string } = {};
+    if (body.name !== undefined) {
+      const name = body.name.trim().slice(0, 40);
+      if (!name) return NextResponse.json({ error: "Name can't be empty." }, { status: 400 });
+      data.name = name;
+    }
+    const patch = await prisma.patch.update({
+      where: { id },
+      data,
+      include: { rows: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    });
     return NextResponse.json(patch);
   } catch {
-    return NextResponse.json({ error: "Couldn't rename that patch." }, { status: 500 });
+    return NextResponse.json({ error: "Couldn't update that patch." }, { status: 500 });
   }
 }
 
