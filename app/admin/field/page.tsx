@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Row {
   id: string;
@@ -17,10 +17,113 @@ interface Patch {
   rows: Row[];
 }
 
-const STEP = 10;
+const SNAP = 5; // %
 
-function freshPct(r: Row) {
-  return Math.max(0, 100 - r.pickedStart - r.pickedEnd);
+/* ---- one draggable row strip ---- */
+function RowStrip({
+  row,
+  editable,
+  onCommit,
+  onDelete,
+}: {
+  row: Row;
+  editable: boolean;
+  onCommit: (start: number, end: number) => void;
+  onDelete?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const valsRef = useRef({ start: row.pickedStart, end: row.pickedEnd });
+  const dragRef = useRef<null | "start" | "end">(null);
+  const [vals, setVals] = useState({ start: row.pickedStart, end: row.pickedEnd });
+
+  // keep in sync with the server value when we're not actively dragging
+  useEffect(() => {
+    if (!dragRef.current) {
+      const next = { start: row.pickedStart, end: row.pickedEnd };
+      valsRef.current = next;
+      setVals(next);
+    }
+  }, [row.pickedStart, row.pickedEnd]);
+
+  const pctAt = (clientX: number) => {
+    const el = ref.current;
+    if (!el) return 0;
+    const rect = el.getBoundingClientRect();
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    return Math.max(0, Math.min(100, Math.round(pct / SNAP) * SNAP));
+  };
+
+  const apply = (which: "start" | "end", pct: number) =>
+    setVals((prev) => {
+      const next =
+        which === "start"
+          ? { ...prev, start: Math.max(0, Math.min(100 - prev.end, pct)) }
+          : { ...prev, end: Math.max(0, Math.min(100 - prev.start, 100 - pct)) };
+      valsRef.current = next;
+      return next;
+    });
+
+  const onDown = (e: React.PointerEvent) => {
+    if (!editable) return;
+    const pct = pctAt(e.clientX);
+    // move whichever end's handle is closer to the tap
+    const which = Math.abs(pct - vals.start) <= Math.abs(pct - (100 - vals.end)) ? "start" : "end";
+    dragRef.current = which;
+    apply(which, pct);
+    ref.current?.setPointerCapture(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    apply(dragRef.current, pctAt(e.clientX));
+  };
+  const onUp = () => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    onCommit(valsRef.current.start, valsRef.current.end);
+  };
+
+  const fresh = Math.max(0, 100 - vals.start - vals.end);
+
+  return (
+    <div className="rowline">
+      <span className="rlabel">{row.label}</span>
+      <div
+        className={`strip ${editable ? "editable" : ""}`}
+        ref={ref}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+      >
+        <span className="seg picked" style={{ width: `${vals.start}%` }} />
+        <span className="seg fresh" style={{ width: `${fresh}%` }} />
+        <span className="seg picked" style={{ width: `${vals.end}%` }} />
+        {editable && <i className="handle" style={{ left: `${vals.start}%` }} />}
+        {editable && <i className="handle" style={{ left: `${100 - vals.end}%` }} />}
+      </div>
+      <span className={`rpct ${fresh === 0 ? "out" : fresh < 30 ? "low" : ""}`}>
+        {fresh === 0 ? "done" : `${fresh}%`}
+      </span>
+      {onDelete && <button className="rx" onClick={onDelete} aria-label="Delete row">×</button>}
+
+      <style jsx>{`
+        .rowline { display: flex; align-items: center; gap: .6rem; padding: 3px 0; }
+        .rlabel { width: 3.4rem; flex: none; font-family: var(--data); font-size: .78rem; font-weight: 700; color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .strip { position: relative; flex: 1; display: flex; height: 38px; border-radius: 5px; overflow: hidden; background: #d9c7a6; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+        .strip.editable { cursor: ew-resize; touch-action: none; }
+        .seg { display: block; height: 100%; }
+        .seg.picked { background: repeating-linear-gradient(90deg, #d6c4a2, #d6c4a2 6px, #cdba95 6px, #cdba95 12px); }
+        .seg.fresh { background: #6f9e4a; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+        .handle { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: #2f2417; border-radius: 3px; box-shadow: 0 0 0 2px rgba(255,255,255,.55); }
+        .rpct { width: 2.6rem; flex: none; font-family: var(--data); font-size: .74rem; font-weight: 700; color: #4f7a33; text-align: left; }
+        .rpct.low { color: #b06a16; }
+        .rpct.out { color: var(--wagon-deep); }
+        .rx { width: 24px; height: 24px; flex: none; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 6px; font-size: .95rem; line-height: 1; cursor: pointer; }
+        .rx:hover { border-color: var(--wagon); color: var(--wagon); }
+        @media (max-width: 480px) { .rlabel { width: 2.6rem; font-size: .72rem; } .strip { height: 34px; } }
+      `}</style>
+    </div>
+  );
 }
 
 export default function FieldPage() {
@@ -69,36 +172,21 @@ export default function FieldPage() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  function patchRow(patchId: string, rowId: string, patch: Partial<Row>) {
+  async function commitRow(patchId: string, rowId: string, start: number, end: number) {
     setPatches((prev) =>
-      prev.map((p) => (p.id === patchId ? { ...p, rows: p.rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)) } : p)),
+      prev.map((p) => (p.id === patchId ? { ...p, rows: p.rows.map((r) => (r.id === rowId ? { ...r, pickedStart: start, pickedEnd: end } : r)) } : p)),
     );
-  }
-
-  async function setSides(patchId: string, row: Row, pickedStart: number, pickedEnd: number) {
-    patchRow(patchId, row.id, { pickedStart, pickedEnd }); // optimistic
     try {
-      const res = await fetch(`/api/field/rows/${row.id}`, {
+      const res = await fetch(`/api/field/rows/${rowId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pickedStart, pickedEnd }),
+        body: JSON.stringify({ pickedStart: start, pickedEnd: end }),
       });
       if (!res.ok) throw new Error();
-      const updated = await res.json();
-      patchRow(patchId, row.id, { pickedStart: updated.pickedStart, pickedEnd: updated.pickedEnd });
     } catch {
       setError("Couldn't save — reloading.");
       reload();
     }
-  }
-
-  function bump(patchId: string, row: Row, side: "start" | "end", delta: number) {
-    let start = row.pickedStart;
-    let end = row.pickedEnd;
-    if (side === "start") start = Math.max(0, Math.min(100 - end, start + delta));
-    else end = Math.max(0, Math.min(100 - start, end + delta));
-    if (start === row.pickedStart && end === row.pickedEnd) return;
-    setSides(patchId, row, start, end);
   }
 
   async function adminAction(url: string, method: string, body?: unknown, after?: () => void) {
@@ -120,10 +208,7 @@ export default function FieldPage() {
   const addPatch = async () => {
     const name = newPatch.trim();
     if (!name) return;
-    await adminAction("/api/field", "POST", { name }, () => {
-      setNewPatch("");
-      reload();
-    });
+    await adminAction("/api/field", "POST", { name }, () => { setNewPatch(""); reload(); });
   };
   const renamePatch = async (p: Patch) => {
     const name = typeof window !== "undefined" ? window.prompt("Rename patch", p.name) : null;
@@ -137,10 +222,7 @@ export default function FieldPage() {
   const addRow = async (patchId: string) => {
     const label = (newRow[patchId] ?? "").trim();
     if (!label) return;
-    await adminAction("/api/field/rows", "POST", { patchId, label }, () => {
-      setNewRow((m) => ({ ...m, [patchId]: "" }));
-      reload();
-    });
+    await adminAction("/api/field/rows", "POST", { patchId, label }, () => { setNewRow((m) => ({ ...m, [patchId]: "" })); reload(); });
   };
   const deleteRow = async (r: Row) => {
     if (typeof window !== "undefined" && !window.confirm(`Delete row "${r.label}"?`)) return;
@@ -148,17 +230,11 @@ export default function FieldPage() {
   };
   const resetPatch = async (p: Patch) => {
     if (typeof window !== "undefined" && !window.confirm(`Mark all of "${p.name}" fresh again?`)) return;
-    await adminAction("/api/field/reset", "POST", { patchId: p.id }, () => {
-      setToast("Patch reset");
-      reload();
-    });
+    await adminAction("/api/field/reset", "POST", { patchId: p.id }, () => { setToast("Patch reset"); reload(); });
   };
   const resetAll = async () => {
     if (typeof window !== "undefined" && !window.confirm("Mark the whole field fresh again?")) return;
-    await adminAction("/api/field/reset", "POST", {}, () => {
-      setToast("Field reset");
-      reload();
-    });
+    await adminAction("/api/field/reset", "POST", {}, () => { setToast("Field reset"); reload(); });
   };
 
   return (
@@ -169,11 +245,9 @@ export default function FieldPage() {
             <span className="eyebrow">Staff</span>
             <h1>Field</h1>
           </div>
-          {isAdmin && patches.length > 0 && (
-            <button className="ghost" onClick={resetAll}>Reset all fresh</button>
-          )}
+          {isAdmin && patches.length > 0 && <button className="ghost" onClick={resetAll}>Reset all fresh</button>}
         </header>
-        <p className="intro">As people pick, advance each row in from the end(s) they&apos;re working. Green is still fresh; red is picked. Send pickers to the greenest rows.</p>
+        <p className="intro">Drag each row in from the end people are picking — <b className="g">green</b> is still fresh, straw is picked. Send pickers to the greenest rows.</p>
 
         {error && <p className="banner">{error}</p>}
 
@@ -183,7 +257,7 @@ export default function FieldPage() {
           <p className="status-msg">No patches yet.{isAdmin ? " Add one below to set up the field." : " Ask an admin to set up the field."}</p>
         ) : (
           patches.map((p) => (
-            <section className="patch" key={p.id}>
+            <section className="plot" key={p.id}>
               <div className="phead">
                 <h2>{p.name}</h2>
                 {isAdmin && (
@@ -195,52 +269,25 @@ export default function FieldPage() {
                 )}
               </div>
 
-              {p.rows.length === 0 ? (
-                <p className="norows">No rows yet.</p>
-              ) : (
-                <ul className="rows">
-                  {p.rows.map((r) => {
-                    const fresh = freshPct(r);
-                    const pickedOut = fresh === 0;
-                    return (
-                      <li className="row" key={r.id}>
-                        <div className="rtop">
-                          <span className="rlabel">{r.label}</span>
-                          <span className={`rstate ${pickedOut ? "out" : fresh < 30 ? "low" : ""}`}>
-                            {pickedOut ? "Picked out" : `${fresh}% fresh`}
-                          </span>
-                          {isAdmin && <button className="rx" onClick={() => deleteRow(r)} aria-label="Delete row">×</button>}
-                        </div>
-                        <div className="rctl">
-                          <div className="stepper">
-                            <button onClick={() => bump(p.id, r, "start", -STEP)} aria-label="Less from start">−</button>
-                            <span>{r.pickedStart}%</span>
-                            <button onClick={() => bump(p.id, r, "start", STEP)} aria-label="More from start">+</button>
-                          </div>
-                          <div className="bar" aria-hidden="true">
-                            <span className="seg picked" style={{ width: `${r.pickedStart}%` }} />
-                            <span className="seg fresh" style={{ width: `${fresh}%` }} />
-                            <span className="seg picked" style={{ width: `${r.pickedEnd}%` }} />
-                          </div>
-                          <div className="stepper">
-                            <button onClick={() => bump(p.id, r, "end", -STEP)} aria-label="Less from far end">−</button>
-                            <span>{r.pickedEnd}%</span>
-                            <button onClick={() => bump(p.id, r, "end", STEP)} aria-label="More from far end">+</button>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              <div className="bed">
+                {p.rows.length === 0 ? (
+                  <p className="norows">No rows yet.</p>
+                ) : (
+                  p.rows.map((r) => (
+                    <RowStrip
+                      key={r.id}
+                      row={r}
+                      editable
+                      onCommit={(s, e) => commitRow(p.id, r.id, s, e)}
+                      onDelete={isAdmin ? () => deleteRow(r) : undefined}
+                    />
+                  ))
+                )}
+              </div>
 
               {isAdmin && (
                 <form className="addrow" onSubmit={(e) => { e.preventDefault(); addRow(p.id); }}>
-                  <input
-                    placeholder="Add a row (e.g. Row 5)"
-                    value={newRow[p.id] ?? ""}
-                    onChange={(e) => setNewRow((m) => ({ ...m, [p.id]: e.target.value }))}
-                  />
+                  <input placeholder="Add a row (e.g. Row 5)" value={newRow[p.id] ?? ""} onChange={(e) => setNewRow((m) => ({ ...m, [p.id]: e.target.value }))} />
                   <button type="submit">Add row</button>
                 </form>
               )}
@@ -265,58 +312,30 @@ export default function FieldPage() {
         .eyebrow { font-family: var(--data); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--wagon-deep); }
         h1 { font-family: var(--display); font-weight: 600; font-size: clamp(1.9rem, 5vw, 2.7rem); letter-spacing: -.01em; margin: .3rem 0 0; }
         .intro { color: var(--muted); margin-top: .7rem; line-height: 1.55; }
+        .intro .g { color: #4f7a33; }
         .banner { margin-top: 1.2rem; background: #fdeee7; border: 1px solid #f4d3c4; color: var(--wagon-deep); font-size: .9rem; font-weight: 500; padding: .8rem 1rem; border-radius: var(--r-md); }
         .status-msg { margin-top: 1.6rem; font-family: var(--data); color: var(--muted); }
         .ghost { font-family: var(--body); font-weight: 600; font-size: .82rem; color: var(--wagon-deep); background: var(--paper-2); border: 1px solid var(--line); padding: .5em 1em; border-radius: var(--r-pill); cursor: pointer; }
         .ghost:hover { border-color: var(--wagon); }
 
-        .patch { margin-top: 2rem; }
-        .phead { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: .5rem; }
-        .phead h2 { font-family: var(--display); font-weight: 600; font-size: 1.4rem; margin: 0; }
+        .plot { margin-top: 1.8rem; border: 1px solid #cdb892; border-radius: var(--r-lg); background: #f3ead8; padding: .9rem 1rem 1rem; }
+        .phead { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: .7rem; }
+        .phead h2 { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0; }
         .padmin { display: flex; gap: .4rem; }
-        .padmin button { font-family: var(--data); font-size: .74rem; color: var(--muted); background: none; border: 1px solid var(--line); padding: .3em .7em; border-radius: var(--r-pill); cursor: pointer; }
+        .padmin button { font-family: var(--data); font-size: .72rem; color: var(--muted); background: #fff; border: 1px solid var(--line); padding: .3em .7em; border-radius: var(--r-pill); cursor: pointer; }
         .padmin button:hover { color: var(--ink); border-color: var(--muted); }
         .padmin .danger:hover { color: var(--wagon); border-color: var(--wagon); }
-        .norows { color: var(--muted); font-family: var(--data); font-size: .85rem; margin: .9rem 0; }
+        .bed { display: flex; flex-direction: column; gap: 2px; }
+        .norows { color: var(--muted); font-family: var(--data); font-size: .85rem; margin: .3rem 0; }
 
-        .rows { list-style: none; margin: .6rem 0 0; padding: 0; }
-        .row { padding: .8rem 0; border-top: 1px solid var(--line); }
-        .row:first-child { border-top: 0; }
-        .rtop { display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
-        .rlabel { font-weight: 700; }
-        .rstate { margin-left: auto; font-family: var(--data); font-size: .76rem; color: var(--sage, #8FA06A); font-weight: 700; }
-        .rstate.low { color: #b06a16; }
-        .rstate.out { color: var(--wagon-deep); }
-        .rx { width: 26px; height: 26px; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 7px; font-size: 1rem; line-height: 1; cursor: pointer; }
-        .rx:hover { border-color: var(--wagon); color: var(--wagon); }
-
-        .rctl { display: flex; align-items: center; gap: .6rem; }
-        .bar { flex: 1; display: flex; height: 22px; border-radius: 7px; overflow: hidden; border: 1px solid var(--line); background: #eee; }
-        .seg { display: block; height: 100%; }
-        .seg.picked { background: var(--wagon); }
-        .seg.fresh { background: var(--sage, #8FA06A); }
-        .stepper { display: flex; align-items: center; gap: 0; flex: none; }
-        .stepper button { width: 34px; height: 34px; border: 1.5px solid var(--line); background: #fff; color: var(--wagon-deep); font-size: 1.2rem; line-height: 1; cursor: pointer; }
-        .stepper button:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
-        .stepper button:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
-        .stepper button:hover { background: var(--paper); border-color: var(--wagon); }
-        .stepper button:active { background: #fdeee7; }
-        .stepper span { min-width: 3ch; text-align: center; font-family: var(--data); font-size: .82rem; border-top: 1.5px solid var(--line); border-bottom: 1.5px solid var(--line); height: 34px; line-height: 34px; }
-
-        .addrow, .addpatch { display: flex; gap: .5rem; margin-top: 1rem; }
-        .addpatch { margin-top: 2rem; }
-        .addrow input, .addpatch input { flex: 1; font-family: var(--body); font-size: .95rem; padding: .6rem .8rem; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: #fff; }
+        .addrow, .addpatch { display: flex; gap: .5rem; margin-top: .8rem; }
+        .addpatch { margin-top: 1.8rem; }
+        .addrow input, .addpatch input { flex: 1; font-family: var(--body); font-size: .92rem; padding: .55rem .8rem; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: #fff; }
         .addrow input:focus, .addpatch input:focus { outline: none; border-color: var(--wagon); }
-        .addrow button, .addpatch button { font-family: var(--body); font-weight: 700; font-size: .9rem; padding: .6em 1.1em; border: none; border-radius: var(--r-pill); background: var(--wagon); color: #fff; cursor: pointer; }
+        .addrow button, .addpatch button { font-family: var(--body); font-weight: 700; font-size: .88rem; padding: .55em 1.1em; border: none; border-radius: var(--r-pill); background: var(--wagon); color: #fff; cursor: pointer; }
         .addrow button:hover, .addpatch button:hover { background: var(--wagon-deep); }
 
         .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: #fff; font-weight: 600; font-size: .95rem; padding: .8rem 1.3rem; border-radius: var(--r-pill); box-shadow: var(--shadow-lg); }
-
-        @media (max-width: 480px) {
-          .stepper button { width: 30px; height: 32px; }
-          .stepper span { height: 32px; line-height: 32px; min-width: 2.6ch; font-size: .76rem; }
-          .bar { height: 20px; }
-        }
       `}</style>
     </div>
   );
