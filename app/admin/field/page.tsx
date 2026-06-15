@@ -24,12 +24,13 @@ interface Patch {
 const SNAP = 5; // %
 
 const STATUS_ORDER: RowStatus[] = ["OPEN", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
-const STATUS_META: Record<RowStatus, { label: string; color: string; bg: string }> = {
-  OPEN: { label: "Open", color: "#4f7a33", bg: "#e7f1da" },
-  CLOSED: { label: "Closed", color: "#5b5b5b", bg: "#e9e9e9" },
-  RESTING: { label: "Resting", color: "#2f6f8f", bg: "#dbebf3" },
-  PICKED_OUT: { label: "Picked out", color: "#9e2a20", bg: "#fbe3df" },
-  NEEDS_ATTENTION: { label: "Needs attention", color: "#8a5a0c", bg: "#fbeccb" },
+// color/bg = badge + edge; fill = the row strip's "fresh" segment.
+const STATUS_META: Record<RowStatus, { label: string; color: string; bg: string; fill: string }> = {
+  OPEN: { label: "Open", color: "#4f7a33", bg: "#e7f1da", fill: "#6f9e4a" },
+  CLOSED: { label: "Closed", color: "#5b5b5b", bg: "#e9e9e9", fill: "#a6a6a6" },
+  RESTING: { label: "Resting", color: "#2f6f8f", bg: "#dbebf3", fill: "#5f97b5" },
+  PICKED_OUT: { label: "Picked out", color: "#9e2a20", bg: "#fbe3df", fill: "#c25b4d" },
+  NEEDS_ATTENTION: { label: "Needs attention", color: "#8a5a0c", bg: "#fbeccb", fill: "#d9a441" },
 };
 
 /* ---- one draggable row strip ---- */
@@ -124,16 +125,15 @@ function RowStrip({
 
   const fresh = Math.max(0, 100 - vals.start - vals.end);
   const meta = STATUS_META[row.status];
-  const dimmed = row.status === "CLOSED" || row.status === "RESTING";
   const showStatusLine = isAdmin || row.status !== "OPEN" || !!row.note;
 
   return (
     <div className="rowline" style={{ borderLeftColor: meta.color }}>
       <div className="rmain">
         <span className="rlabel">{row.label}</span>
-        <div className={`strip ${editable ? "editable" : ""} ${dimmed ? "dim" : ""}`} ref={ref} onPointerDown={onDown}>
+        <div className={`strip ${editable ? "editable" : ""}`} ref={ref} onPointerDown={onDown}>
           <span className="seg picked" style={{ width: `${vals.start}%` }} />
-          <span className="seg fresh" style={{ width: `${fresh}%` }} />
+          <span className="seg fresh" style={{ width: `${fresh}%`, background: meta.fill }} />
           <span className="seg picked" style={{ width: `${vals.end}%` }} />
           {editable && <i className="handle" style={{ left: `${vals.start}%` }} />}
           {editable && <i className="handle" style={{ left: `${100 - vals.end}%` }} />}
@@ -184,10 +184,9 @@ function RowStrip({
         .rlabel { width: 3.4rem; flex: none; font-family: var(--data); font-size: .78rem; font-weight: 700; color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .strip { position: relative; flex: 1; display: flex; height: 38px; border-radius: 5px; overflow: hidden; background: #d9c7a6; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
         .strip.editable { cursor: ew-resize; touch-action: none; }
-        .strip.dim { opacity: .5; }
         .seg { display: block; height: 100%; }
         .seg.picked { background: repeating-linear-gradient(90deg, #d6c4a2, #d6c4a2 6px, #cdba95 6px, #cdba95 12px); }
-        .seg.fresh { background: #6f9e4a; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+        .seg.fresh { box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
         .handle { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: #2f2417; border-radius: 3px; box-shadow: 0 0 0 2px rgba(255,255,255,.55); }
         .rpct { width: 2.6rem; flex: none; font-family: var(--data); font-size: .74rem; font-weight: 700; color: #4f7a33; text-align: left; }
         .rpct.low { color: #b06a16; }
