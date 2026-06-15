@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type RowStatus = "OPEN" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
+type RowStatus = "OPEN" | "STAFF_PICKING" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
 
 interface Row {
   id: string;
@@ -23,10 +23,11 @@ interface Patch {
 
 const SNAP = 5; // %
 
-const STATUS_ORDER: RowStatus[] = ["OPEN", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
+const STATUS_ORDER: RowStatus[] = ["OPEN", "STAFF_PICKING", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
 // color/bg = badge + edge; fill = the row strip's "fresh" segment.
 const STATUS_META: Record<RowStatus, { label: string; color: string; bg: string; fill: string }> = {
   OPEN: { label: "Open", color: "#4f7a33", bg: "#e7f1da", fill: "#6f9e4a" },
+  STAFF_PICKING: { label: "Staff picking", color: "#6b4fa0", bg: "#ece5f6", fill: "#8d72c4" },
   CLOSED: { label: "Closed", color: "#5b5b5b", bg: "#e9e9e9", fill: "#a6a6a6" },
   RESTING: { label: "Resting", color: "#2f6f8f", bg: "#dbebf3", fill: "#5f97b5" },
   PICKED_OUT: { label: "Picked out", color: "#9e2a20", bg: "#fbe3df", fill: "#c25b4d" },

@@ -26,12 +26,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const existing = await prisma.fieldRow.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Row not found" }, { status: 404 });
 
-  const STATUSES = ["OPEN", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
+  const STATUSES = ["OPEN", "STAFF_PICKING", "CLOSED", "RESTING", "PICKED_OUT", "NEEDS_ATTENTION"];
   const data: {
     pickedStart?: number;
     pickedEnd?: number;
     label?: string;
-    status?: "OPEN" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
+    status?: "OPEN" | "STAFF_PICKING" | "CLOSED" | "RESTING" | "PICKED_OUT" | "NEEDS_ATTENTION";
     note?: string | null;
   } = {};
 

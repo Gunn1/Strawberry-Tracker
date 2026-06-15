@@ -199,6 +199,7 @@ model Patch {
 
 enum RowStatus {
   OPEN
+  STAFF_PICKING
   CLOSED
   RESTING
   PICKED_OUT
