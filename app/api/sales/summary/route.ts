@@ -3,21 +3,17 @@ import { getServerSession } from "next-auth";
 import { getPrisma } from "@/prisma";
 import { authOptions } from "@/lib/auth";
 
-type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
-
 function startOfToday(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-// Local YYYY-MM-DD key for grouping sales into days.
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// GET /api/sales/summary?range=today|7d|30d|all
-// Aggregated till numbers for the staff sales report.
+// GET /api/sales/summary?range=today|7d|30d|all -> aggregated till numbers (admins).
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +21,6 @@ export async function GET(req: Request) {
   const prisma = getPrisma();
 
   const range = new URL(req.url).searchParams.get("range") ?? "today";
-
   let since: Date | null;
   const today = startOfToday();
   if (range === "7d") {
@@ -37,7 +32,7 @@ export async function GET(req: Request) {
   } else if (range === "all") {
     since = null;
   } else {
-    since = today; // "today"
+    since = today;
   }
 
   try {
@@ -46,7 +41,8 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
       select: {
         createdAt: true,
-        mode: true,
+        productName: true,
+        unit: true,
         quantity: true,
         totalCents: true,
         tenderedCents: true,
@@ -60,16 +56,9 @@ export async function GET(req: Request) {
     let revenue = 0;
     let tendered = 0;
     let change = 0;
-    const byMode: Record<SaleMode, { units: number; revenue: number; count: number }> = {
-      QUART: { units: 0, revenue: 0, count: 0 },
-      ASPARAGUS: { units: 0, revenue: 0, count: 0 },
-      RHUBARB: { units: 0, revenue: 0, count: 0 },
-    };
+    const productMap = new Map<string, { name: string; unit: string; units: number; revenue: number; count: number }>();
     const dayMap = new Map<string, { revenue: number; count: number }>();
-    const cashierMap = new Map<
-      string,
-      { id: string; name: string; count: number; revenue: number; units: Record<SaleMode, number> }
-    >();
+    const cashierMap = new Map<string, { id: string; name: string; count: number; revenue: number }>();
     const locMap = new Map<string, { name: string; count: number; revenue: number }>();
 
     for (const s of sales) {
@@ -77,12 +66,12 @@ export async function GET(req: Request) {
       tendered += s.tenderedCents;
       change += s.changeCents;
 
-      const m = byMode[s.mode as SaleMode];
-      if (m) {
-        m.units += s.quantity;
-        m.revenue += s.totalCents;
-        m.count += 1;
-      }
+      const pName = s.productName || "—";
+      const pm = productMap.get(pName) ?? { name: pName, unit: s.unit, units: 0, revenue: 0, count: 0 };
+      pm.units += s.quantity;
+      pm.revenue += s.totalCents;
+      pm.count += 1;
+      productMap.set(pName, pm);
 
       const key = dayKey(s.createdAt);
       const d = dayMap.get(key) ?? { revenue: 0, count: 0 };
@@ -90,24 +79,12 @@ export async function GET(req: Request) {
       d.count += 1;
       dayMap.set(key, d);
 
-      // who sold what
       const cid = s.cashierId ?? "unknown";
-      let c = cashierMap.get(cid);
-      if (!c) {
-        c = {
-          id: cid,
-          name: s.cashier?.name || s.cashier?.email || "Unknown",
-          count: 0,
-          revenue: 0,
-          units: { QUART: 0, ASPARAGUS: 0, RHUBARB: 0 },
-        };
-        cashierMap.set(cid, c);
-      }
+      const c = cashierMap.get(cid) ?? { id: cid, name: s.cashier?.name || s.cashier?.email || "Unknown", count: 0, revenue: 0 };
       c.count += 1;
       c.revenue += s.totalCents;
-      c.units[s.mode as SaleMode] += s.quantity;
+      cashierMap.set(cid, c);
 
-      // where it sold
       const locName = s.location || "Unspecified";
       const l = locMap.get(locName) ?? { name: locName, count: 0, revenue: 0 };
       l.count += 1;
@@ -115,9 +92,8 @@ export async function GET(req: Request) {
       locMap.set(locName, l);
     }
 
-    const byDay = [...dayMap.entries()]
-      .map(([date, v]) => ({ date, ...v }))
-      .sort((a, b) => (a.date < b.date ? 1 : -1)); // newest first
+    const byProduct = [...productMap.values()].sort((a, b) => b.revenue - a.revenue);
+    const byDay = [...dayMap.entries()].map(([date, v]) => ({ date, ...v })).sort((a, b) => (a.date < b.date ? 1 : -1));
     const byCashier = [...cashierMap.values()].sort((a, b) => b.revenue - a.revenue);
     const byLocation = [...locMap.values()].sort((a, b) => b.revenue - a.revenue);
 
@@ -128,7 +104,7 @@ export async function GET(req: Request) {
       revenue,
       tendered,
       change,
-      byMode,
+      byProduct,
       byDay,
       byCashier,
       byLocation,

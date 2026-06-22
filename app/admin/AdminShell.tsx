@@ -33,7 +33,7 @@ export default function AdminShell({
   const manage = isAdmin
     ? [
         { href: "/admin/transactions", label: "Transactions" },
-        { href: "/admin/prices", label: "Prices" },
+        { href: "/admin/products", label: "Products" },
         { href: "/admin/locations", label: "Locations" },
         { href: "/admin/users", label: "Users" },
       ]

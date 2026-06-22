@@ -6,12 +6,8 @@ const WAGON = "#C5392C";
 const INK = "#271F17";
 const MUTED = "#6F6354";
 
-// Distinct colors per product (strawberry red, asparagus green, rhubarb amber).
-const PRODUCT_FILL: Record<string, string> = {
-  QUART: "#C5392C",
-  ASPARAGUS: "#8FA06A",
-  RHUBARB: "#D98B3A",
-};
+// Palette cycled across however many products there are.
+const PALETTE = ["#C5392C", "#8FA06A", "#D98B3A", "#6b4fa0", "#2f6f8f", "#b06a16", "#4f7a33", "#9e2a20"];
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const axisMoney = (cents: number) => `$${Math.round(cents / 100)}`;
@@ -62,8 +58,8 @@ function insideLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadiu
   );
 }
 
-// Revenue share by produce (donut).
-export function ProductPie({ data }: { data: { name: string; value: number; mode: string }[] }) {
+// Revenue share by product (donut).
+export function ProductPie({ data }: { data: { name: string; value: number }[] }) {
   return (
     <ResponsiveContainer width="100%" height={250}>
       <PieChart>
@@ -80,8 +76,8 @@ export function ProductPie({ data }: { data: { name: string; value: number; mode
           label={insideLabel}
           labelLine={false}
         >
-          {data.map((d) => (
-            <Cell key={d.mode} fill={PRODUCT_FILL[d.mode] ?? "#ccc"} />
+          {data.map((d, i) => (
+            <Cell key={d.name} fill={PALETTE[i % PALETTE.length]} />
           ))}
         </Pie>
         <Tooltip formatter={(v) => [money(v as number), "Revenue"]} />

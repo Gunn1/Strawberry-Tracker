@@ -92,18 +92,21 @@ model Authenticator {
   @@id([userId, credentialID])
 }
 
-enum SaleMode {
-  QUART      // strawberries, by the quart
-  ASPARAGUS  // by the pound
-  RHUBARB    // by the pound
+// Things the stand sells. Dynamic — add/edit them in the admin.
+model Product {
+  id         String   @id @default(cuid())
+  name       String
+  unit       String   @default("each") // qt, lb, each, …
+  priceCents Int      @default(0)
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  sales      Sale[]
 }
 
 // Singleton row of stand prices + today's open status. id is always "default".
 model StandSettings {
   id             String @id @default("default")
-  quartCents     Int    @default(500) // strawberries, per quart
-  asparagusCents Int    @default(350) // per pound
-  rhubarbCents   Int    @default(300) // per pound
 
   // Customer-facing status is COMPUTED from the schedule below plus an optional
   // same-day override set by staff at /admin (override wins for that day).
@@ -124,8 +127,11 @@ model Sale {
   id             String   @id @default(cuid())
   createdAt      DateTime @default(now())
 
-  mode           SaleMode
-  quantity       Int      // # of quarts (strawberries) or pounds (asparagus / rhubarb)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName    String   @default("") // denormalized name + unit AT TIME OF SALE
+  unit           String   @default("each")
+  quantity       Int
   unitPriceCents Int      // price per unit AT TIME OF SALE
   totalCents     Int      // quantity * unitPriceCents
   tenderedCents  Int      // cash received
@@ -140,6 +146,7 @@ model Sale {
   @@index([createdAt])
   @@index([cashierId])
   @@index([groupId])
+  @@index([productId])
 }
 
 // Selling locations the till can ring up at (the farm, farmers markets, etc.).

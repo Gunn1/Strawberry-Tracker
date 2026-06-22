@@ -7,12 +7,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
+interface Product {
+  id: string;
+  name: string;
+  unit: string;
+  priceCents: number;
+}
 
 interface Sale {
   id: string;
   createdAt: string;
-  mode: SaleMode;
+  productId: string | null;
+  productName: string;
+  unit: string;
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
@@ -27,27 +34,9 @@ interface Loc {
   name: string;
 }
 
-interface Settings {
-  quartCents: number;
-  asparagusCents: number;
-  rhubarbCents: number;
-}
-
 interface CartLine {
-  mode: SaleMode;
+  productId: string;
   qty: number;
-}
-
-const DEFAULT_SETTINGS: Settings = { quartCents: 500, asparagusCents: 350, rhubarbCents: 300 };
-
-const PRODUCTS: { mode: SaleMode; label: string; unit: string; abbr: string; priceKey: keyof Settings }[] = [
-  { mode: "QUART", label: "Strawberries", unit: "quart", abbr: "qt", priceKey: "quartCents" },
-  { mode: "ASPARAGUS", label: "Asparagus", unit: "pound", abbr: "lb", priceKey: "asparagusCents" },
-  { mode: "RHUBARB", label: "Rhubarb", unit: "pound", abbr: "lb", priceKey: "rhubarbCents" },
-];
-
-function productFor(mode: SaleMode) {
-  return PRODUCTS.find((p) => p.mode === mode) ?? PRODUCTS[0];
 }
 
 /* ------------------------------------------------------------------ */
@@ -89,7 +78,7 @@ function fmtTime(iso: string): string {
 /* ------------------------------------------------------------------ */
 
 export default function StrawberryRegister() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [cashier, setCashier] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
   const [locations, setLocations] = useState<Loc[]>([]);
@@ -122,17 +111,17 @@ export default function StrawberryRegister() {
     let active = true;
     (async () => {
       try {
-        const [sRes, salesRes, meRes, locRes] = await Promise.all([
-          fetch("/api/settings"),
+        const [pRes, salesRes, meRes, locRes] = await Promise.all([
+          fetch("/api/products"),
           fetch("/api/sales"),
           fetch("/api/me"),
           fetch("/api/locations"),
         ]);
-        if (!sRes.ok || !salesRes.ok) throw new Error("Failed to load");
-        const s: Settings = await sRes.json();
+        if (!pRes.ok || !salesRes.ok) throw new Error("Failed to load");
+        const prods: Product[] = await pRes.json();
         const list: Sale[] = await salesRes.json();
         if (!active) return;
-        setSettings(s);
+        setProducts(prods);
         setSales(list);
         if (meRes.ok) setCashier(await meRes.json());
         if (locRes.ok) {
@@ -168,9 +157,10 @@ export default function StrawberryRegister() {
   /* ---------- derived ---------- */
   const cashierName = cashier.name?.trim().split(/\s+/)[0] || cashier.email || "Cashier";
 
+  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const orderTotal = useMemo(
-    () => cart.reduce((sum, l) => sum + l.qty * settings[productFor(l.mode).priceKey], 0),
-    [cart, settings],
+    () => cart.reduce((sum, l) => sum + l.qty * (byId.get(l.productId)?.priceCents ?? 0), 0),
+    [cart, byId],
   );
 
   const hasTender = cash.trim() !== "";
@@ -198,12 +188,14 @@ export default function StrawberryRegister() {
 
   const totals = useMemo(() => {
     let rev = 0;
-    const qtyByMode: Record<SaleMode, number> = { QUART: 0, ASPARAGUS: 0, RHUBARB: 0 };
+    const map = new Map<string, { name: string; unit: string; qty: number }>();
     for (const s of sales) {
       rev += s.totalCents;
-      qtyByMode[s.mode] += s.quantity;
+      const m = map.get(s.productName) ?? { name: s.productName, unit: s.unit, qty: 0 };
+      m.qty += s.quantity;
+      map.set(s.productName, m);
     }
-    return { rev, qtyByMode, count: groups.length };
+    return { rev, byProduct: [...map.values()], count: groups.length };
   }, [sales, groups]);
 
   const recentGroups = groups.slice(0, 5);
@@ -225,21 +217,21 @@ export default function StrawberryRegister() {
   if (saving) completeLabel = "Saving…";
 
   /* ---------- cart actions ---------- */
-  const addToCart = (mode: SaleMode) =>
+  const addToCart = (productId: string) =>
     setCart((prev) => {
-      const ex = prev.find((l) => l.mode === mode);
-      if (ex) return prev.map((l) => (l.mode === mode ? { ...l, qty: l.qty + 1 } : l));
-      return [...prev, { mode, qty: 1 }];
+      const ex = prev.find((l) => l.productId === productId);
+      if (ex) return prev.map((l) => (l.productId === productId ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { productId, qty: 1 }];
     });
-  const bumpCart = (mode: SaleMode, delta: number) =>
+  const bumpCart = (productId: string, delta: number) =>
     setCart((prev) =>
       prev
-        .map((l) => (l.mode === mode ? { ...l, qty: l.qty + delta } : l))
+        .map((l) => (l.productId === productId ? { ...l, qty: l.qty + delta } : l))
         .filter((l) => l.qty > 0),
     );
-  const setCartQty = (mode: SaleMode, qty: number) =>
-    setCart((prev) => prev.map((l) => (l.mode === mode ? { ...l, qty: Math.max(0, qty) } : l)).filter((l) => l.qty > 0));
-  const removeFromCart = (mode: SaleMode) => setCart((prev) => prev.filter((l) => l.mode !== mode));
+  const setCartQty = (productId: string, qty: number) =>
+    setCart((prev) => prev.map((l) => (l.productId === productId ? { ...l, qty: Math.max(0, qty) } : l)).filter((l) => l.qty > 0));
+  const removeFromCart = (productId: string) => setCart((prev) => prev.filter((l) => l.productId !== productId));
 
   const chooseLocation = (name: string) => {
     setLocation(name);
@@ -261,7 +253,7 @@ export default function StrawberryRegister() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: cart.map((l) => ({ mode: l.mode, quantity: l.qty })),
+          items: cart.map((l) => ({ productId: l.productId, quantity: l.qty })),
           tenderedCents,
           location: location || undefined,
         }),
@@ -300,7 +292,7 @@ export default function StrawberryRegister() {
   }, []);
 
   const itemsSummary = (items: Sale[]) =>
-    items.map((it) => `${it.quantity} ${productFor(it.mode).abbr} ${productFor(it.mode).label.toLowerCase()}`).join(", ");
+    items.map((it) => `${it.quantity} ${it.unit} ${it.productName.toLowerCase()}`).join(", ");
 
   return (
     <div className="reg">
@@ -341,44 +333,49 @@ export default function StrawberryRegister() {
       {/* Register */}
       <div className="card">
         <div className="qlabel">Tap to add</div>
-        <div className="seg">
-          {PRODUCTS.map((p) => {
-            const line = cart.find((l) => l.mode === p.mode);
-            return (
-              <button key={p.mode} className={line ? "on" : ""} onClick={() => addToCart(p.mode)}>
-                {line && <span className="badge">{line.qty}</span>}
-                {p.label}
-                <span className="sub">{fmt(settings[p.priceKey])}/{p.abbr}</span>
-              </button>
-            );
-          })}
-        </div>
+        {products.length === 0 ? (
+          <div className="cart-empty">No products yet. Add one under <b>Products</b> in the admin.</div>
+        ) : (
+          <div className="seg">
+            {products.map((p) => {
+              const line = cart.find((l) => l.productId === p.id);
+              return (
+                <button key={p.id} className={line ? "on" : ""} onClick={() => addToCart(p.id)}>
+                  {line && <span className="badge">{line.qty}</span>}
+                  {p.name}
+                  <span className="sub">{fmt(p.priceCents)}/{p.unit}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {cart.length === 0 ? (
           <div className="cart-empty">Tap a product above to start an order.</div>
         ) : (
           <div className="cart">
             {cart.map((l) => {
-              const p = productFor(l.mode);
+              const p = byId.get(l.productId);
+              if (!p) return null;
               return (
-                <div className="citem" key={l.mode}>
+                <div className="citem" key={l.productId}>
                   <div className="cinfo">
-                    <b>{p.label}</b>
-                    <small>{fmt(settings[p.priceKey])}/{p.abbr}</small>
+                    <b>{p.name}</b>
+                    <small>{fmt(p.priceCents)}/{p.unit}</small>
                   </div>
                   <div className="cqty">
-                    <button onClick={() => bumpCart(l.mode, -1)} aria-label="Less">&minus;</button>
+                    <button onClick={() => bumpCart(l.productId, -1)} aria-label="Less">&minus;</button>
                     <input
                       type="number"
                       inputMode="numeric"
                       min={1}
                       value={l.qty}
-                      onChange={(e) => setCartQty(l.mode, parseInt(e.target.value, 10) || 0)}
+                      onChange={(e) => setCartQty(l.productId, parseInt(e.target.value, 10) || 0)}
                     />
-                    <button onClick={() => bumpCart(l.mode, 1)} aria-label="More">+</button>
+                    <button onClick={() => bumpCart(l.productId, 1)} aria-label="More">+</button>
                   </div>
-                  <div className="cltotal">{fmt(l.qty * settings[p.priceKey])}</div>
-                  <button className="crem" onClick={() => removeFromCart(l.mode)} aria-label="Remove">×</button>
+                  <div className="cltotal">{fmt(l.qty * p.priceCents)}</div>
+                  <button className="crem" onClick={() => removeFromCart(l.productId)} aria-label="Remove">×</button>
                 </div>
               );
             })}
@@ -443,14 +440,16 @@ export default function StrawberryRegister() {
           <div className="stat"><div className="sk">Sales</div><div className="sv">{totals.count}</div></div>
           <div className="stat rev"><div className="sk">Revenue</div><div className="sv">{fmt(totals.rev)}</div></div>
         </div>
-        <div className="grid3">
-          {PRODUCTS.map((p) => (
-            <div className="stat" key={p.mode}>
-              <div className="sk">{p.label}</div>
-              <div className="sv">{totals.qtyByMode[p.mode].toLocaleString()}<span className="su"> {p.abbr}</span></div>
-            </div>
-          ))}
-        </div>
+        {totals.byProduct.length > 0 && (
+          <div className="grid3">
+            {totals.byProduct.map((p) => (
+              <div className="stat" key={p.name}>
+                <div className="sk">{p.name}</div>
+                <div className="sv">{p.qty.toLocaleString()}<span className="su"> {p.unit}</span></div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="recent-head">
           <span className="rh-title">Recent</span>

@@ -22,25 +22,17 @@ const ProductPie = dynamic(() => import("./Charts").then((m) => m.ProductPie), {
 /* Types + helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
-
 interface Summary {
   range: string;
   count: number;
   revenue: number;
   tendered: number;
   change: number;
-  byMode: Record<SaleMode, { units: number; revenue: number; count: number }>;
+  byProduct: { name: string; unit: string; units: number; revenue: number; count: number }[];
   byDay: { date: string; revenue: number; count: number }[];
-  byCashier: { id: string; name: string; count: number; revenue: number; units: Record<SaleMode, number> }[];
+  byCashier: { id: string; name: string; count: number; revenue: number }[];
   byLocation: { name: string; count: number; revenue: number }[];
 }
-
-const PRODUCTS: { mode: SaleMode; label: string; unit: string }[] = [
-  { mode: "QUART", label: "Strawberries", unit: "qt" },
-  { mode: "ASPARAGUS", label: "Asparagus", unit: "lb" },
-  { mode: "RHUBARB", label: "Rhubarb", unit: "lb" },
-];
 
 const RANGES: { key: string; label: string }[] = [
   { key: "today", label: "Today" },
@@ -142,44 +134,33 @@ export default function SalesReportPage() {
             {/* per-product */}
             <h2 className="sub">By product</h2>
             {(() => {
-              const pie = PRODUCTS.map((p) => ({ name: p.label, value: data.byMode[p.mode].revenue, mode: p.mode })).filter(
-                (d) => d.value > 0,
-              );
+              const pie = data.byProduct.filter((p) => p.revenue > 0).map((p) => ({ name: p.name, value: p.revenue }));
               return pie.length > 0 ? <ProductPie data={pie} /> : null;
             })()}
             <div className="products">
-              {PRODUCTS.map((p) => {
-                const m = data.byMode[p.mode];
-                return (
-                  <div className="product" key={p.mode}>
-                    <div className="pname">{p.label}</div>
-                    <div className="pqty mono">{m.units.toLocaleString()} <span>{p.unit}</span></div>
-                    <div className="prev">{fmt(m.revenue)}</div>
-                    <div className="pcount mono">{m.count} sale{m.count === 1 ? "" : "s"}</div>
-                  </div>
-                );
-              })}
+              {data.byProduct.map((m) => (
+                <div className="product" key={m.name}>
+                  <div className="pname">{m.name}</div>
+                  <div className="pqty mono">{m.units.toLocaleString()} <span>{m.unit}</span></div>
+                  <div className="prev">{fmt(m.revenue)}</div>
+                  <div className="pcount mono">{m.count} sale{m.count === 1 ? "" : "s"}</div>
+                </div>
+              ))}
             </div>
 
             {/* who sold what */}
             <h2 className="sub">By cashier</h2>
             <RevenueBars data={data.byCashier.map((c) => ({ name: c.name, revenue: c.revenue }))} />
             <div className="cashiers">
-              {data.byCashier.map((c) => {
-                const units = PRODUCTS.filter((p) => c.units[p.mode] > 0)
-                  .map((p) => `${c.units[p.mode]} ${p.unit} ${p.label.toLowerCase()}`)
-                  .join(" · ");
-                return (
-                  <div className="cashrow" key={c.id}>
-                    <div className="cinfo">
-                      <span className="cname">{c.name}</span>
-                      <span className="cunits mono">{units || "—"}</span>
-                    </div>
-                    <span className="ccount mono">{c.count} sale{c.count === 1 ? "" : "s"}</span>
-                    <span className="crev">{fmt(c.revenue)}</span>
+              {data.byCashier.map((c) => (
+                <div className="cashrow" key={c.id}>
+                  <div className="cinfo">
+                    <span className="cname">{c.name}</span>
                   </div>
-                );
-              })}
+                  <span className="ccount mono">{c.count} sale{c.count === 1 ? "" : "s"}</span>
+                  <span className="crev">{fmt(c.revenue)}</span>
+                </div>
+              ))}
             </div>
 
             {/* where it sold */}

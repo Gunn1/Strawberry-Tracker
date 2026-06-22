@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
-
 interface Tx {
   id: string;
   createdAt: string;
-  mode: SaleMode;
+  productId: string | null;
+  productName: string;
+  unit: string;
   quantity: number;
   unitPriceCents: number;
   totalCents: number;
@@ -27,12 +27,12 @@ interface Loc {
   id: string;
   name: string;
 }
+interface Product {
+  id: string;
+  name: string;
+  unit: string;
+}
 
-const PRODUCTS: { mode: SaleMode; label: string; unit: string }[] = [
-  { mode: "QUART", label: "Strawberries", unit: "qt" },
-  { mode: "ASPARAGUS", label: "Asparagus", unit: "lb" },
-  { mode: "RHUBARB", label: "Rhubarb", unit: "lb" },
-];
 const RANGES = [
   { key: "today", label: "Today" },
   { key: "7d", label: "7 days" },
@@ -45,9 +45,6 @@ function fmt(cents: number): string {
   const s = `$${Math.floor(abs / 100).toLocaleString()}.${String(abs % 100).padStart(2, "0")}`;
   return cents < 0 ? `-${s}` : s;
 }
-function productOf(mode: SaleMode) {
-  return PRODUCTS.find((p) => p.mode === mode) ?? PRODUCTS[0];
-}
 function whenLabel(iso: string): string {
   return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
@@ -58,7 +55,7 @@ function toLocalInput(iso: string): string {
 }
 
 interface Draft {
-  mode: SaleMode;
+  productId: string;
   quantity: string;
   location: string;
   cashierId: string;
@@ -74,6 +71,7 @@ export default function TransactionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState("");
 
+  const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Tx | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -85,10 +83,11 @@ export default function TransactionsPage() {
       setLoading(true);
       setError(null);
       try {
-        const [tRes, uRes, lRes] = await Promise.all([
+        const [tRes, uRes, lRes, pRes] = await Promise.all([
           fetch(`/api/transactions?range=${range}`),
           fetch("/api/users"),
           fetch("/api/locations?all=1"),
+          fetch("/api/products?all=1"),
         ]);
         if (!tRes.ok) throw new Error();
         const list = await tRes.json();
@@ -96,6 +95,7 @@ export default function TransactionsPage() {
         setTxs(list);
         if (uRes.ok) setPeople(await uRes.json());
         if (lRes.ok) setLocs(await lRes.json());
+        if (pRes.ok) setProducts(await pRes.json());
       } catch {
         if (active) setError("Couldn't load transactions.");
       } finally {
@@ -116,7 +116,7 @@ export default function TransactionsPage() {
   function openEdit(tx: Tx) {
     setEditing(tx);
     setDraft({
-      mode: tx.mode,
+      productId: tx.productId ?? "",
       quantity: String(tx.quantity),
       location: tx.location ?? "",
       cashierId: tx.cashierId ?? "",
@@ -133,7 +133,7 @@ export default function TransactionsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: draft.mode,
+          productId: draft.productId || undefined,
           quantity: parseInt(draft.quantity, 10),
           location: draft.location || null,
           cashierId: draft.cashierId || null,
@@ -201,12 +201,11 @@ export default function TransactionsPage() {
             {txs.length >= 500 && <p className="cap">Showing the most recent 500 sales.</p>}
             <ul className="txlist">
               {txs.map((t) => {
-                const p = productOf(t.mode);
                 const who = t.cashier?.name || t.cashier?.email || "—";
                 return (
                   <li className="tx" key={t.id}>
                     <div className="tmain">
-                      <b>{t.quantity} {p.unit} {p.label.toLowerCase()}</b>
+                      <b>{t.quantity} {t.unit} {t.productName.toLowerCase()}</b>
                       <span className="meta">
                         {whenLabel(t.createdAt)} · {who}{t.location ? ` · ${t.location}` : ""}
                       </span>
@@ -229,13 +228,16 @@ export default function TransactionsPage() {
 
             <label className="f">
               <span>Product</span>
-              <select value={draft.mode} onChange={(e) => setDraft({ ...draft, mode: e.target.value as SaleMode })}>
-                {PRODUCTS.map((p) => <option key={p.mode} value={p.mode}>{p.label}</option>)}
+              <select value={draft.productId} onChange={(e) => setDraft({ ...draft, productId: e.target.value })}>
+                {!products.some((p) => p.id === draft.productId) && (
+                  <option value={draft.productId}>{editing.productName || "—"}</option>
+                )}
+                {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
 
             <label className="f">
-              <span>Quantity ({productOf(draft.mode).unit})</span>
+              <span>Quantity ({products.find((p) => p.id === draft.productId)?.unit ?? editing.unit})</span>
               <input type="number" min="1" step="1" value={draft.quantity} onChange={(e) => setDraft({ ...draft, quantity: e.target.value })} />
             </label>
 

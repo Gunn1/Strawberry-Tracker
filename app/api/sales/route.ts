@@ -3,12 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/prisma";
 
-type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
-
-const PRICE_FIELD: Record<SaleMode, "quartCents" | "asparagusCents" | "rhubarbCents"> = {
-  QUART: "quartCents",
-  ASPARAGUS: "asparagusCents",
-  RHUBARB: "rhubarbCents",
+// The original three products still map to per-location stock columns, so
+// inventory keeps working for them. (New products don't track stock yet.)
+const STOCK_COL: Record<string, "stockQuart" | "stockAsparagus" | "stockRhubarb"> = {
+  prod_quart: "stockQuart",
+  prod_asparagus: "stockAsparagus",
+  prod_rhubarb: "stockRhubarb",
 };
 
 function startOfToday(): Date {
@@ -33,14 +33,14 @@ export async function GET() {
   }
 }
 
-// POST /api/sales -> create a sale. Totals are recomputed server-side from
-// the saved prices so a tampered client payload can't change what's recorded.
+// POST /api/sales -> create a multi-item order. Prices come from the products
+// server-side so a tampered payload can't change what's recorded.
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const prisma = getPrisma();
 
-  let body: { items?: { mode?: SaleMode; quantity?: number }[]; tenderedCents?: number; location?: string };
+  let body: { items?: { productId?: string; quantity?: number }[]; tenderedCents?: number; location?: string };
   try {
     body = await req.json();
   } catch {
@@ -49,49 +49,44 @@ export async function POST(req: Request) {
 
   const items = Array.isArray(body.items) ? body.items : [];
   const tenderedCents = body.tenderedCents;
-
   if (
     items.length === 0 ||
     !Number.isInteger(tenderedCents) ||
     (tenderedCents as number) < 0 ||
-    !items.every(
-      (it) =>
-        (it.mode === "QUART" || it.mode === "ASPARAGUS" || it.mode === "RHUBARB") &&
-        Number.isInteger(it.quantity) &&
-        (it.quantity as number) > 0,
-    )
+    !items.every((it) => typeof it.productId === "string" && Number.isInteger(it.quantity) && (it.quantity as number) > 0)
   ) {
     return NextResponse.json({ error: "Invalid sale data" }, { status: 400 });
   }
 
   try {
-    const settings = await prisma.standSettings.upsert({
-      where: { id: "default" },
-      update: {},
-      create: { id: "default" },
-    });
+    const ids = [...new Set(items.map((it) => it.productId as string))];
+    const products = await prisma.product.findMany({ where: { id: { in: ids } } });
+    const byId = new Map(products.map((p) => [p.id, p]));
 
-    // Server-side line totals so a tampered payload can't change what's recorded.
     const lines = items.map((it) => {
-      const unitPriceCents = settings[PRICE_FIELD[it.mode as SaleMode]];
-      return { mode: it.mode as SaleMode, quantity: it.quantity as number, unitPriceCents, totalCents: unitPriceCents * (it.quantity as number) };
+      const p = byId.get(it.productId as string);
+      if (!p) return null;
+      const quantity = it.quantity as number;
+      return { productId: p.id, productName: p.name, unit: p.unit, quantity, unitPriceCents: p.priceCents, totalCents: p.priceCents * quantity };
     });
-    const orderTotal = lines.reduce((sum, l) => sum + l.totalCents, 0);
+    if (lines.some((l) => l === null)) return NextResponse.json({ error: "Unknown product" }, { status: 400 });
+    const goodLines = lines as NonNullable<(typeof lines)[number]>[];
 
+    const orderTotal = goodLines.reduce((sum, l) => sum + l.totalCents, 0);
     if ((tenderedCents as number) < orderTotal) {
       return NextResponse.json({ error: "Tendered amount is less than total" }, { status: 400 });
     }
 
     const location = typeof body.location === "string" ? body.location.trim().slice(0, 60) || null : null;
     const groupId = crypto.randomUUID();
-    const cashierId = session?.user?.id ?? null;
+    const cashierId = session.user.id ?? null;
     const change = (tenderedCents as number) - orderTotal;
 
-    // Record the transaction's cash on the first line only, so report totals
-    // (revenue / tendered / change) stay accurate while each line keeps its product.
     await prisma.sale.createMany({
-      data: lines.map((l, i) => ({
-        mode: l.mode,
+      data: goodLines.map((l, i) => ({
+        productId: l.productId,
+        productName: l.productName,
+        unit: l.unit,
         quantity: l.quantity,
         unitPriceCents: l.unitPriceCents,
         totalCents: l.totalCents,
@@ -103,21 +98,24 @@ export async function POST(req: Request) {
       })),
     });
 
-    // Draw the sold quantities down from this location's inventory, if it tracks stock.
+    // Draw down per-location stock for the original three products.
     if (location) {
       const loc = await prisma.location.findUnique({
         where: { name: location },
         select: { id: true, trackStock: true, stockQuart: true, stockAsparagus: true, stockRhubarb: true },
       });
       if (loc?.trackStock) {
-        const sold = { QUART: 0, ASPARAGUS: 0, RHUBARB: 0 } as Record<SaleMode, number>;
-        for (const l of lines) sold[l.mode] += l.quantity;
+        const dec = { stockQuart: 0, stockAsparagus: 0, stockRhubarb: 0 };
+        for (const l of goodLines) {
+          const col = STOCK_COL[l.productId];
+          if (col) dec[col] += l.quantity;
+        }
         await prisma.location.update({
           where: { id: loc.id },
           data: {
-            stockQuart: Math.max(0, loc.stockQuart - sold.QUART),
-            stockAsparagus: Math.max(0, loc.stockAsparagus - sold.ASPARAGUS),
-            stockRhubarb: Math.max(0, loc.stockRhubarb - sold.RHUBARB),
+            stockQuart: Math.max(0, loc.stockQuart - dec.stockQuart),
+            stockAsparagus: Math.max(0, loc.stockAsparagus - dec.stockAsparagus),
+            stockRhubarb: Math.max(0, loc.stockRhubarb - dec.stockRhubarb),
           },
         });
       }

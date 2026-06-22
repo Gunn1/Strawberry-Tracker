@@ -3,17 +3,18 @@ import { getServerSession } from "next-auth";
 import { getPrisma } from "@/prisma";
 import { authOptions } from "@/lib/auth";
 
-type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
-const PRICE_FIELD: Record<SaleMode, "quartCents" | "asparagusCents" | "rhubarbCents"> = {
-  QUART: "quartCents",
-  ASPARAGUS: "asparagusCents",
-  RHUBARB: "rhubarbCents",
+const STOCK_COL: Record<string, "stockQuart" | "stockAsparagus" | "stockRhubarb"> = {
+  prod_quart: "stockQuart",
+  prod_asparagus: "stockAsparagus",
+  prod_rhubarb: "stockRhubarb",
 };
 
 const SALE_SELECT = {
   id: true,
   createdAt: true,
-  mode: true,
+  productId: true,
+  productName: true,
+  unit: true,
   quantity: true,
   unitPriceCents: true,
   totalCents: true,
@@ -24,8 +25,7 @@ const SALE_SELECT = {
   cashier: { select: { name: true, email: true } },
 } as const;
 
-// PATCH /api/sales/:id -> edit a recorded sale (admins only). Money is recomputed
-// from current prices when the product or quantity changes, so totals stay consistent.
+// PATCH /api/sales/:id -> edit a recorded sale (admins only).
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,7 +33,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const prisma = getPrisma();
   const { id } = await ctx.params;
 
-  let body: { mode?: string; quantity?: number; location?: string | null; cashierId?: string | null; createdAt?: string };
+  let body: { productId?: string; quantity?: number; location?: string | null; cashierId?: string | null; createdAt?: string };
   try {
     body = await req.json();
   } catch {
@@ -44,14 +44,17 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!existing) return NextResponse.json({ error: "Sale not found" }, { status: 404 });
 
   const data: Record<string, unknown> = {};
-  let mode = existing.mode as SaleMode;
   let quantity = existing.quantity;
+  let unitPriceCents = existing.unitPriceCents;
   let moneyDirty = false;
 
-  if (body.mode !== undefined) {
-    if (!(body.mode in PRICE_FIELD)) return NextResponse.json({ error: "Invalid product" }, { status: 400 });
-    mode = body.mode as SaleMode;
-    data.mode = mode;
+  if (body.productId !== undefined) {
+    const product = await prisma.product.findUnique({ where: { id: body.productId } });
+    if (!product) return NextResponse.json({ error: "Unknown product" }, { status: 400 });
+    data.productId = product.id;
+    data.productName = product.name;
+    data.unit = product.unit;
+    unitPriceCents = product.priceCents;
     moneyDirty = true;
   }
   if (body.quantity !== undefined) {
@@ -62,12 +65,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     data.quantity = quantity;
     moneyDirty = true;
   }
-  if (body.location !== undefined) {
-    data.location = body.location ? String(body.location).trim().slice(0, 60) || null : null;
-  }
-  if (body.cashierId !== undefined) {
-    data.cashierId = body.cashierId || null;
-  }
+  if (body.location !== undefined) data.location = body.location ? String(body.location).trim().slice(0, 60) || null : null;
+  if (body.cashierId !== undefined) data.cashierId = body.cashierId || null;
   if (body.createdAt !== undefined) {
     const dt = new Date(body.createdAt);
     if (isNaN(dt.getTime())) return NextResponse.json({ error: "Invalid date" }, { status: 400 });
@@ -75,13 +74,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   if (moneyDirty) {
-    const settings = await prisma.standSettings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
-    const unitPriceCents = settings[PRICE_FIELD[mode]];
     const totalCents = unitPriceCents * quantity;
     let tenderedCents = existing.tenderedCents;
     let changeCents = tenderedCents - totalCents;
     if (changeCents < 0) {
-      tenderedCents = totalCents; // can't owe negative change — treat as exact cash
+      tenderedCents = totalCents;
       changeCents = 0;
     }
     data.unitPriceCents = unitPriceCents;
@@ -107,14 +104,14 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const prisma = getPrisma();
   const { id } = await ctx.params;
   try {
-    const sale = await prisma.sale.findUnique({ where: { id }, select: { mode: true, quantity: true, location: true } });
+    const sale = await prisma.sale.findUnique({ where: { id }, select: { productId: true, quantity: true, location: true } });
     await prisma.sale.delete({ where: { id } });
-    // Put the quantity back on the shelf if its location tracks inventory.
-    if (sale?.location) {
+    // Put stock back if its location tracks inventory (original three only).
+    const col = sale?.productId ? STOCK_COL[sale.productId] : undefined;
+    if (sale?.location && col) {
       const loc = await prisma.location.findUnique({ where: { name: sale.location }, select: { id: true, trackStock: true } });
       if (loc?.trackStock) {
-        const field = ({ QUART: "stockQuart", ASPARAGUS: "stockAsparagus", RHUBARB: "stockRhubarb" } as const)[sale.mode as SaleMode];
-        await prisma.location.update({ where: { id: loc.id }, data: { [field]: { increment: sale.quantity } } });
+        await prisma.location.update({ where: { id: loc.id }, data: { [col]: { increment: sale.quantity } } });
       }
     }
     return NextResponse.json({ ok: true });

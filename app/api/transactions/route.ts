@@ -39,7 +39,9 @@ export async function GET(req: Request) {
       select: {
         id: true,
         createdAt: true,
-        mode: true,
+        productId: true,
+        productName: true,
+        unit: true,
         quantity: true,
         unitPriceCents: true,
         totalCents: true,
