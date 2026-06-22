@@ -238,8 +238,8 @@ export default function RedWagonFarm() {
               <div className="body">
                 <div className="where">Around Park Rapids &amp; beyond</div>
                 <h3>Ready-Picked</h3>
-                <p className="desc">Can&apos;t make it out? Find our ready-picked quarts and buckets at the Red Barn (Mon–Fri 10–5) and at the Park Rapids, Walker, and Detroit Lakes farmers&apos; markets. 10# flats are available by pre-order for pickup at the farm.</p>
-                <div className="tags"><span className="tag">Quarts</span><span className="tag">Buckets</span><span className="tag">10# flats</span></div>
+                <p className="desc">Can&apos;t make it out? Find our ready-picked quarts at the Red Barn (Mon–Fri 10–5) and at the Park Rapids, Walker, and Detroit Lakes farmers&apos; markets. 10# flats are available by pre-order for pickup at the farm.</p>
+                <div className="tags"><span className="tag">Quarts</span><span className="tag">10# flats</span></div>
                 <a className="more" href="#contact">Where to find us <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></a>
               </div>
             </article>
@@ -312,7 +312,7 @@ export default function RedWagonFarm() {
 
           <div className="orders reveal">
             <h3>Want them ready-picked?</h3>
-            <p>Find our quarts and buckets at the Red Barn and area farmers&apos; markets. To order a <b>10# flat</b>, leave a message at <a href="tel:+12187324979">(218) 732-4979</a> or send us a message on Facebook — orders are filled first-come for pickup at the farm (a $3-per-flat card fee applies). We accept cash, Discover, MasterCard &amp; Visa.</p>
+            <p>Find our quarts at the Red Barn and area farmers&apos; markets. To order a <b>10# flat</b>, leave a message at <a href="tel:+12187324979">(218) 732-4979</a> or send us a message on Facebook — orders are filled first-come for pickup at the farm (a $3-per-flat card fee applies). We accept cash, Discover, MasterCard &amp; Visa.</p>
           </div>
         </div>
       </section>

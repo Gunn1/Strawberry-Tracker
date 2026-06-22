@@ -24,5 +24,8 @@
 		// Enable image optimization
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
-	}
+	},
+	
+  "account_id": "baaf26cd8a2356504797c661e908d701"
+
 }

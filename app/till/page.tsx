@@ -11,7 +11,7 @@ type SaleMode = "QUART" | "ASPARAGUS" | "RHUBARB";
 
 interface Sale {
   id: string;
-  createdAt: string; // ISO string from the API
+  createdAt: string;
   mode: SaleMode;
   quantity: number;
   unitPriceCents: number;
@@ -19,6 +19,7 @@ interface Sale {
   tenderedCents: number;
   changeCents: number;
   location?: string | null;
+  groupId?: string | null;
 }
 
 interface Loc {
@@ -32,22 +33,17 @@ interface Settings {
   rhubarbCents: number;
 }
 
-const DEFAULT_SETTINGS: Settings = {
-  quartCents: 500,
-  asparagusCents: 350,
-  rhubarbCents: 300,
-};
-
-// What the stand sells. `unit` is singular; quarts for berries, pounds for the rest.
-const PRODUCTS: {
+interface CartLine {
   mode: SaleMode;
-  label: string;
-  unit: string;
-  priceKey: keyof Settings;
-}[] = [
-  { mode: "QUART", label: "Strawberries", unit: "quart", priceKey: "quartCents" },
-  { mode: "ASPARAGUS", label: "Asparagus", unit: "pound", priceKey: "asparagusCents" },
-  { mode: "RHUBARB", label: "Rhubarb", unit: "pound", priceKey: "rhubarbCents" },
+  qty: number;
+}
+
+const DEFAULT_SETTINGS: Settings = { quartCents: 500, asparagusCents: 350, rhubarbCents: 300 };
+
+const PRODUCTS: { mode: SaleMode; label: string; unit: string; abbr: string; priceKey: keyof Settings }[] = [
+  { mode: "QUART", label: "Strawberries", unit: "quart", abbr: "qt", priceKey: "quartCents" },
+  { mode: "ASPARAGUS", label: "Asparagus", unit: "pound", abbr: "lb", priceKey: "asparagusCents" },
+  { mode: "RHUBARB", label: "Rhubarb", unit: "pound", abbr: "lb", priceKey: "rhubarbCents" },
 ];
 
 function productFor(mode: SaleMode) {
@@ -59,27 +55,10 @@ function productFor(mode: SaleMode) {
 /* ------------------------------------------------------------------ */
 
 const DENOMS: [number, string][] = [
-  [10000, "$100"],
-  [5000, "$50"],
-  [2000, "$20"],
-  [1000, "$10"],
-  [500, "$5"],
-  [100, "$1"],
-  [25, "25¢"],
-  [10, "10¢"],
-  [5, "5¢"],
-  [1, "1¢"],
+  [10000, "$100"], [5000, "$50"], [2000, "$20"], [1000, "$10"], [500, "$5"],
+  [100, "$1"], [25, "25¢"], [10, "10¢"], [5, "5¢"], [1, "1¢"],
 ];
-
-// Quick-add chips for the bills a stand handles most — each taps onto the typed total.
-const QUICK_ADD: [number, string][] = [
-  [2000, "$20"],
-  [1000, "$10"],
-  [500, "$5"],
-  [100, "$1"],
-];
-
-const QTY_PRESETS = [1, 2, 3, 6, 12];
+const QUICK_ADD: [number, string][] = [[2000, "$20"], [1000, "$10"], [500, "$5"], [100, "$1"]];
 
 function fmt(cents: number): string {
   const neg = cents < 0;
@@ -87,26 +66,20 @@ function fmt(cents: number): string {
   const s = `$${Math.floor(abs / 100).toLocaleString()}.${String(abs % 100).padStart(2, "0")}`;
   return neg ? `-${s}` : s;
 }
-
 function toCents(v: string): number {
   const n = parseFloat(v);
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
-
 function makeChange(cents: number): { count: number; label: string }[] {
   if (cents <= 0) return [];
   let rem = cents;
   const parts: { count: number; label: string }[] = [];
   for (const [value, label] of DENOMS) {
     const count = Math.floor(rem / value);
-    if (count > 0) {
-      parts.push({ count, label });
-      rem -= count * value;
-    }
+    if (count > 0) { parts.push({ count, label }); rem -= count * value; }
   }
   return parts;
 }
-
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
@@ -121,11 +94,8 @@ export default function StrawberryRegister() {
   const [cashier, setCashier] = useState<{ name: string | null; email: string | null }>({ name: null, email: null });
   const [locations, setLocations] = useState<Loc[]>([]);
   const [location, setLocation] = useState<string>("");
-  const [mode, setMode] = useState<SaleMode>("QUART");
-  const [qty, setQty] = useState<number>(1);
 
-  // Cash received, typed in manually (or filled by the quick-add chips).
-  // Empty string means "exact cash — no change".
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [cash, setCash] = useState<string>("");
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -133,11 +103,19 @@ export default function StrawberryRegister() {
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string>("");
-  // Change-due confirmation shown after a sale where the customer is owed change.
   const [receipt, setReceipt] = useState<
     | null
-    | { changeCents: number; breakdown: { count: number; label: string }[]; qty: number; product: string; totalCents: number }
+    | { changeCents: number; breakdown: { count: number; label: string }[]; itemCount: number; totalCents: number }
   >(null);
+
+  const reloadSales = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sales");
+      if (res.ok) setSales(await res.json());
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   /* ---------- initial load ---------- */
   useEffect(() => {
@@ -174,37 +152,49 @@ export default function StrawberryRegister() {
     };
   }, []);
 
-  /* ---------- toast auto-dismiss ---------- */
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 1900);
     return () => clearTimeout(t);
   }, [toast]);
 
-  /* ---------- Esc closes the change popup ---------- */
   useEffect(() => {
     if (!receipt) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setReceipt(null);
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setReceipt(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [receipt]);
 
-  /* ---------- derived values ---------- */
+  /* ---------- derived ---------- */
   const cashierName = cashier.name?.trim().split(/\s+/)[0] || cashier.email || "Cashier";
-  const recentSales = sales.slice(0, 5);
-  const product = productFor(mode);
-  const unitCents = settings[product.priceKey];
-  const cost = Math.max(0, qty) * unitCents;
+
+  const orderTotal = useMemo(
+    () => cart.reduce((sum, l) => sum + l.qty * settings[productFor(l.mode).priceKey], 0),
+    [cart, settings],
+  );
 
   const hasTender = cash.trim() !== "";
-  const tendered = useMemo(() => (hasTender ? toCents(cash) : cost), [hasTender, cash, cost]);
-  const change = hasTender ? tendered - cost : null;
-  const breakdown = useMemo(
-    () => (change !== null && change > 0 ? makeChange(change) : []),
-    [change],
-  );
+  const tendered = hasTender ? toCents(cash) : orderTotal;
+  const change = hasTender ? tendered - orderTotal : null;
+  const liveBreakdown = change !== null && change > 0 ? makeChange(change) : [];
+
+  // Group the cashier's sale rows back into transactions for the shift view.
+  const groups = useMemo(() => {
+    const map = new Map<string, { id: string; createdAt: string; items: Sale[]; total: number; tendered: number; change: number }>();
+    for (const s of sales) {
+      const key = s.groupId ?? s.id;
+      let g = map.get(key);
+      if (!g) {
+        g = { id: key, createdAt: s.createdAt, items: [], total: 0, tendered: 0, change: 0 };
+        map.set(key, g);
+      }
+      g.items.push(s);
+      g.total += s.totalCents;
+      g.tendered += s.tenderedCents;
+      g.change += s.changeCents;
+    }
+    return [...map.values()];
+  }, [sales]);
 
   const totals = useMemo(() => {
     let rev = 0;
@@ -213,62 +203,76 @@ export default function StrawberryRegister() {
       rev += s.totalCents;
       qtyByMode[s.mode] += s.quantity;
     }
-    return { rev, qtyByMode, count: sales.length };
-  }, [sales]);
+    return { rev, qtyByMode, count: groups.length };
+  }, [sales, groups]);
 
-  /* ---------- log button state ---------- */
-  let logLabel = "Log sale";
-  let logDisabled = saving;
-  if (cost <= 0) {
-    logLabel = "Log sale";
-    logDisabled = true;
+  const recentGroups = groups.slice(0, 5);
+
+  /* ---------- complete button state ---------- */
+  let completeLabel = "Complete sale";
+  let completeDisabled = saving;
+  if (cart.length === 0) {
+    completeLabel = "Add a product";
+    completeDisabled = true;
+  } else if (orderTotal <= 0) {
+    completeDisabled = true;
   } else if (change !== null && change < 0) {
-    logLabel = `Need ${fmt(-change)} more`;
-    logDisabled = true;
+    completeLabel = `Need ${fmt(-change)} more`;
+    completeDisabled = true;
   } else if (!hasTender) {
-    logLabel = "Log sale (exact cash)";
+    completeLabel = "Complete sale (exact cash)";
   }
-  if (saving) logLabel = "Saving…";
+  if (saving) completeLabel = "Saving…";
 
-  /* ---------- actions ---------- */
-  const switchMode = (m: SaleMode) => setMode(m);
-  const bump = (delta: number) => setQty((q) => Math.max(0, q + delta));
+  /* ---------- cart actions ---------- */
+  const addToCart = (mode: SaleMode) =>
+    setCart((prev) => {
+      const ex = prev.find((l) => l.mode === mode);
+      if (ex) return prev.map((l) => (l.mode === mode ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { mode, qty: 1 }];
+    });
+  const bumpCart = (mode: SaleMode, delta: number) =>
+    setCart((prev) =>
+      prev
+        .map((l) => (l.mode === mode ? { ...l, qty: l.qty + delta } : l))
+        .filter((l) => l.qty > 0),
+    );
+  const setCartQty = (mode: SaleMode, qty: number) =>
+    setCart((prev) => prev.map((l) => (l.mode === mode ? { ...l, qty: Math.max(0, qty) } : l)).filter((l) => l.qty > 0));
+  const removeFromCart = (mode: SaleMode) => setCart((prev) => prev.filter((l) => l.mode !== mode));
+
   const chooseLocation = (name: string) => {
     setLocation(name);
     if (typeof window !== "undefined") localStorage.setItem("till-location", name);
   };
-
-  // Quick-add chips bump the typed cash amount up by a bill/coin value.
-  const addCash = (cents: number) =>
-    setCash((c) => (((c.trim() === "" ? 0 : toCents(c)) + cents) / 100).toFixed(2));
+  const addCash = (cents: number) => setCash((c) => (((c.trim() === "" ? 0 : toCents(c)) + cents) / 100).toFixed(2));
   const clearTender = () => setCash("");
 
-  const logSale = useCallback(async () => {
-    if (cost <= 0 || saving) return;
-    const tenderedCents = hasTender ? tendered : cost;
-    if (tenderedCents < cost) return;
+  const completeSale = useCallback(async () => {
+    if (cart.length === 0 || orderTotal <= 0 || saving) return;
+    const tenderedCents = hasTender ? tendered : orderTotal;
+    if (tenderedCents < orderTotal) return;
 
+    const itemCount = cart.reduce((n, l) => n + l.qty, 0);
     setSaving(true);
     setError(null);
     try {
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, quantity: qty, tenderedCents, location: location || undefined }),
+        body: JSON.stringify({
+          items: cart.map((l) => ({ mode: l.mode, quantity: l.qty })),
+          tenderedCents,
+          location: location || undefined,
+        }),
       });
       if (!res.ok) throw new Error("save failed");
-      const created: Sale = await res.json();
-      setSales((prev) => [created, ...prev]);
-      setQty(1);
+      const data: { changeCents: number } = await res.json();
+      setCart([]);
       setCash("");
-      if (created.changeCents > 0) {
-        setReceipt({
-          changeCents: created.changeCents,
-          breakdown: makeChange(created.changeCents),
-          qty: created.quantity,
-          product: productFor(created.mode).label,
-          totalCents: created.totalCents,
-        });
+      await reloadSales();
+      if (data.changeCents > 0) {
+        setReceipt({ changeCents: data.changeCents, breakdown: makeChange(data.changeCents), itemCount, totalCents: orderTotal });
       } else {
         setToast("Sale logged ✔");
       }
@@ -277,18 +281,16 @@ export default function StrawberryRegister() {
     } finally {
       setSaving(false);
     }
-  }, [cost, saving, hasTender, tendered, mode, qty, location]);
+  }, [cart, orderTotal, saving, hasTender, tendered, location, reloadSales]);
 
-  const voidSale = useCallback(async (id: string) => {
-    if (typeof window !== "undefined" && !window.confirm("Void this sale? It will be removed from today's totals.")) {
-      return;
-    }
-    setVoidingId(id);
+  const voidGroup = useCallback(async (g: { id: string; items: Sale[] }) => {
+    if (typeof window !== "undefined" && !window.confirm("Void this sale? It will be removed from today's totals.")) return;
+    setVoidingId(g.id);
     setError(null);
     try {
-      const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("void failed");
-      setSales((prev) => prev.filter((s) => s.id !== id));
+      await Promise.all(g.items.map((it) => fetch(`/api/sales/${it.id}`, { method: "DELETE" })));
+      const ids = new Set(g.items.map((it) => it.id));
+      setSales((prev) => prev.filter((s) => !ids.has(s.id)));
       setToast("Sale voided");
     } catch {
       setError("Couldn't void that sale — try again.");
@@ -297,27 +299,16 @@ export default function StrawberryRegister() {
     }
   }, []);
 
-
-  /* ---------- render ---------- */
-  const unitWord = product.unit; // "quart" or "pound"
+  const itemsSummary = (items: Sale[]) =>
+    items.map((it) => `${it.quantity} ${productFor(it.mode).abbr} ${productFor(it.mode).label.toLowerCase()}`).join(", ");
 
   return (
     <div className="reg">
       <header className="reg-head">
         <svg className="berry" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <path
-            d="M24 8c-2 0-4 .6-5.6 1.6C16.8 8.6 14 8 11 9c2 1.4 3 3.4 3.2 5C9.6 16 8 19.4 8 23.4 8 33 15.6 42 24 42s16-9 16-18.6c0-4-1.6-7.4-6.2-9.4.2-1.6 1.2-3.6 3.2-5-3-1-5.8-.4-7.4 1.6C28 8.6 26 8 24 8Z"
-            fill="#C41E3A"
-          />
-          <path
-            d="M24 8c-2 0-4 .6-5.6 1.6C16.8 8.6 14 8 11 9c2 1.4 3 3.4 3.2 5 1.6-1 3.4-1.6 5-1.6 1.8 0 3.6.6 4.8 1.6 1.2-1 3-1.6 4.8-1.6 1.6 0 3.4.6 5 1.6.2-1.6 1.2-3.6 3.2-5-3-1-5.8-.4-7.4 1.6C28 8.6 26 8 24 8Z"
-            fill="#3D7A33"
-          />
-          {[
-            [18, 22], [24, 20], [30, 22],
-            [15, 28], [21, 27], [27, 27], [33, 28],
-            [18, 34], [24, 34], [30, 34],
-          ].map(([cx, cy], i) => (
+          <path d="M24 8c-2 0-4 .6-5.6 1.6C16.8 8.6 14 8 11 9c2 1.4 3 3.4 3.2 5C9.6 16 8 19.4 8 23.4 8 33 15.6 42 24 42s16-9 16-18.6c0-4-1.6-7.4-6.2-9.4.2-1.6 1.2-3.6 3.2-5-3-1-5.8-.4-7.4 1.6C28 8.6 26 8 24 8Z" fill="#C41E3A" />
+          <path d="M24 8c-2 0-4 .6-5.6 1.6C16.8 8.6 14 8 11 9c2 1.4 3 3.4 3.2 5 1.6-1 3.4-1.6 5-1.6 1.8 0 3.6.6 4.8 1.6 1.2-1 3-1.6 4.8-1.6 1.6 0 3.4.6 5 1.6.2-1.6 1.2-3.6 3.2-5-3-1-5.8-.4-7.4 1.6C28 8.6 26 8 24 8Z" fill="#3D7A33" />
+          {[[18, 22], [24, 20], [30, 22], [15, 28], [21, 27], [27, 27], [33, 28], [18, 34], [24, 34], [30, 34]].map(([cx, cy], i) => (
             <circle key={i} cx={cx} cy={cy} r="1.3" fill="#F4C95D" />
           ))}
         </svg>
@@ -339,11 +330,7 @@ export default function StrawberryRegister() {
           <span className="loclabel">Selling at</span>
           <div className="locchips">
             {locations.map((l) => (
-              <button
-                key={l.id}
-                className={location === l.name ? "on" : ""}
-                onClick={() => chooseLocation(l.name)}
-              >
+              <button key={l.id} className={location === l.name ? "on" : ""} onClick={() => chooseLocation(l.name)}>
                 {l.name}
               </button>
             ))}
@@ -353,56 +340,59 @@ export default function StrawberryRegister() {
 
       {/* Register */}
       <div className="card">
+        <div className="qlabel">Tap to add</div>
         <div className="seg">
-          {PRODUCTS.map((p) => (
-            <button
-              key={p.mode}
-              className={mode === p.mode ? "on" : ""}
-              onClick={() => switchMode(p.mode)}
-            >
-              {p.label}
-              <span className="sub">
-                {fmt(settings[p.priceKey])}/{p.unit === "quart" ? "qt" : "lb"}
-              </span>
-            </button>
-          ))}
+          {PRODUCTS.map((p) => {
+            const line = cart.find((l) => l.mode === p.mode);
+            return (
+              <button key={p.mode} className={line ? "on" : ""} onClick={() => addToCart(p.mode)}>
+                {line && <span className="badge">{line.qty}</span>}
+                {p.label}
+                <span className="sub">{fmt(settings[p.priceKey])}/{p.abbr}</span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="qlabel">How many {unitWord}s?</div>
-        <div className="stepper">
-          <button className="step" onClick={() => bump(-1)} aria-label="Less">&minus;</button>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={Number.isNaN(qty) ? "" : qty}
-            onChange={(e) => setQty(Math.max(0, parseInt(e.target.value, 10) || 0))}
-          />
-          <button className="step" onClick={() => bump(1)} aria-label="More">+</button>
-        </div>
-        <div className="qpresets">
-          {QTY_PRESETS.map((p) => (
-            <button
-              key={p}
-              className={qty === p ? "on" : ""}
-              onClick={() => setQty(p)}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+        {cart.length === 0 ? (
+          <div className="cart-empty">Tap a product above to start an order.</div>
+        ) : (
+          <div className="cart">
+            {cart.map((l) => {
+              const p = productFor(l.mode);
+              return (
+                <div className="citem" key={l.mode}>
+                  <div className="cinfo">
+                    <b>{p.label}</b>
+                    <small>{fmt(settings[p.priceKey])}/{p.abbr}</small>
+                  </div>
+                  <div className="cqty">
+                    <button onClick={() => bumpCart(l.mode, -1)} aria-label="Less">&minus;</button>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      value={l.qty}
+                      onChange={(e) => setCartQty(l.mode, parseInt(e.target.value, 10) || 0)}
+                    />
+                    <button onClick={() => bumpCart(l.mode, 1)} aria-label="More">+</button>
+                  </div>
+                  <div className="cltotal">{fmt(l.qty * settings[p.priceKey])}</div>
+                  <button className="crem" onClick={() => removeFromCart(l.mode)} aria-label="Remove">×</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="readout cost">
           <span className="rk">Total</span>
-          <span className="rv">{fmt(cost)}</span>
+          <span className="rv">{fmt(orderTotal)}</span>
         </div>
 
-        {/* Cash received — type it in, or tap a bill to add it up */}
         <div className="cash-label">
           <span>Cash received</span>
-          {hasTender && (
-            <button className="linkbtn" onClick={clearTender}>Exact</button>
-          )}
+          {hasTender && <button className="linkbtn" onClick={clearTender}>Exact</button>}
         </div>
 
         <div className="cash-field">
@@ -412,7 +402,7 @@ export default function StrawberryRegister() {
             inputMode="decimal"
             step="0.25"
             min="0"
-            placeholder={(cost / 100).toFixed(2)}
+            placeholder={(orderTotal / 100).toFixed(2)}
             value={cash}
             onChange={(e) => setCash(e.target.value)}
             aria-label="Cash received"
@@ -422,34 +412,28 @@ export default function StrawberryRegister() {
 
         <div className="quickadd">
           {QUICK_ADD.map(([value, label]) => (
-            <button key={value} className="qa" onClick={() => addCash(value)}>
-              +{label}
-            </button>
+            <button key={value} className="qa" onClick={() => addCash(value)}>+{label}</button>
           ))}
         </div>
 
-        {change !== null && cost > 0 && (
+        {change !== null && orderTotal > 0 && (
           <div className={`change ${change < 0 ? "short" : ""}`}>
             <div className="ck">{change < 0 ? "Still owed" : "Change due"}</div>
             <div className="cv">{fmt(Math.abs(change))}</div>
-            {breakdown.length > 0 && (
+            {liveBreakdown.length > 0 && (
               <div className="bd">
-                {breakdown.map((b) => (
-                  <span key={b.label}>
-                    {b.count} &times; {b.label}
-                  </span>
+                {liveBreakdown.map((b) => (
+                  <span key={b.label}>{b.count} &times; {b.label}</span>
                 ))}
               </div>
             )}
           </div>
         )}
 
-        <button className="log-btn" onClick={logSale} disabled={logDisabled}>
-          {logLabel}
-        </button>
+        <button className="log-btn" onClick={completeSale} disabled={completeDisabled}>{completeLabel}</button>
       </div>
 
-      {/* Totals + log */}
+      {/* Shift */}
       <div className="card">
         <div className="totals-head">
           <h2>Your shift</h2>
@@ -463,53 +447,33 @@ export default function StrawberryRegister() {
           {PRODUCTS.map((p) => (
             <div className="stat" key={p.mode}>
               <div className="sk">{p.label}</div>
-              <div className="sv">
-                {totals.qtyByMode[p.mode].toLocaleString()}
-                <span className="su"> {p.unit === "quart" ? "qt" : "lb"}</span>
-              </div>
+              <div className="sv">{totals.qtyByMode[p.mode].toLocaleString()}<span className="su"> {p.abbr}</span></div>
             </div>
           ))}
         </div>
 
         <div className="recent-head">
           <span className="rh-title">Recent</span>
-          {sales.length > 5 && <span className="rh-note">last 5 of {sales.length}</span>}
+          {groups.length > 5 && <span className="rh-note">last 5 of {groups.length}</span>}
         </div>
         <div className="salelist">
-          {sales.length === 0 ? (
-            <div className="empty">
-              You haven&apos;t logged any sales yet today.
-              <br />
-              Ring one up above to get started.
-            </div>
+          {groups.length === 0 ? (
+            <div className="empty">You haven&apos;t logged any sales yet today.<br />Ring one up above to get started.</div>
           ) : (
-            recentSales.map((s) => {
-              const sp = productFor(s.mode);
-              const word = s.quantity === 1 ? sp.unit : `${sp.unit}s`;
-              return (
-                <div className="sale" key={s.id}>
-                  <div className="t">{fmtTime(s.createdAt)}</div>
-                  <div className="d">
-                    <b>{s.quantity} {word} {sp.label.toLowerCase()}</b>
-                    <br />
-                    <small>
-                      paid {fmt(s.tenderedCents)}
-                      {s.changeCents > 0 ? ` · change ${fmt(s.changeCents)}` : ""}
-                    </small>
-                  </div>
-                  <div className="amt">{fmt(s.totalCents)}</div>
-                  <button
-                    className="void"
-                    onClick={() => voidSale(s.id)}
-                    disabled={voidingId === s.id}
-                    aria-label="Void sale"
-                    title="Void sale"
-                  >
-                    {voidingId === s.id ? "…" : "×"}
-                  </button>
+            recentGroups.map((g) => (
+              <div className="sale" key={g.id}>
+                <div className="t">{fmtTime(g.createdAt)}</div>
+                <div className="d">
+                  <b>{itemsSummary(g.items)}</b>
+                  <br />
+                  <small>paid {fmt(g.tendered)}{g.change > 0 ? ` · change ${fmt(g.change)}` : ""}</small>
                 </div>
-              );
-            })
+                <div className="amt">{fmt(g.total)}</div>
+                <button className="void" onClick={() => voidGroup(g)} disabled={voidingId === g.id} aria-label="Void sale" title="Void sale">
+                  {voidingId === g.id ? "…" : "×"}
+                </button>
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -519,7 +483,7 @@ export default function StrawberryRegister() {
           <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="m-check" aria-hidden="true">✓</div>
             <div className="m-title">Sale logged</div>
-            <div className="m-sub">{receipt.qty} &times; {receipt.product} · {fmt(receipt.totalCents)}</div>
+            <div className="m-sub">{receipt.itemCount} item{receipt.itemCount === 1 ? "" : "s"} · {fmt(receipt.totalCents)}</div>
             <div className="m-changelabel">Change to give</div>
             <div className="m-change">{fmt(receipt.changeCents)}</div>
             {receipt.breakdown.length > 0 && (
@@ -538,20 +502,9 @@ export default function StrawberryRegister() {
 
       <style jsx>{`
         .reg {
-          --berry: #c41e3a;
-          --berry-deep: #8e1429;
-          --leaf: #3d7a33;
-          --leaf-deep: #2a5624;
-          --cream: #fff7f2;
-          --ink: #2b1518;
-          --muted: #8a6e6e;
-          --paper: #fff;
-          --line: #f1ded4;
-          --warn: #c0431b;
-          max-width: 520px;
-          margin: 0 auto;
-          padding: 18px 14px 60px;
-          color: var(--ink);
+          --berry: #c41e3a; --berry-deep: #8e1429; --leaf: #3d7a33; --leaf-deep: #2a5624;
+          --cream: #fff7f2; --ink: #2b1518; --muted: #8a6e6e; --paper: #fff; --line: #f1ded4; --warn: #c0431b;
+          max-width: 520px; margin: 0 auto; padding: 18px 14px 60px; color: var(--ink);
           font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
         .reg :global(*) { box-sizing: border-box; }
@@ -572,30 +525,37 @@ export default function StrawberryRegister() {
         .locchips { display: flex; gap: 7px; flex-wrap: wrap; }
         .locchips button { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 13.5px; padding: 8px 14px; border: 1.5px solid var(--line); background: #fff; border-radius: 999px; color: var(--berry-deep); cursor: pointer; transition: all 0.12s; }
         .locchips button:hover { border-color: var(--berry); }
-        .locchips button:active { transform: scale(0.95); }
         .locchips button.on { background: var(--berry); color: #fff; border-color: var(--berry); box-shadow: 0 3px 10px rgba(196, 30, 58, 0.25); }
 
         .card { background: var(--paper); border: 1.5px solid var(--line); border-radius: 20px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 0 rgba(196, 30, 58, 0.04); }
         .card h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; margin: 0; }
 
-        .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--cream); padding: 5px; border-radius: 14px; border: 1.5px solid var(--line); }
-        .seg button { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 13.5px; line-height: 1.1; padding: 12px 2px; border: none; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
-        .seg .sub { display: block; font-family: "Space Mono", ui-monospace, monospace; font-weight: 400; font-size: 10.5px; margin-top: 3px; opacity: 0.85; }
-        .seg button.on { background: var(--berry); color: #fff; box-shadow: 0 4px 14px rgba(196, 30, 58, 0.28); }
+        .qlabel { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 15px; margin: 0 0 10px; }
+        .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .seg button { position: relative; font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 13.5px; line-height: 1.1; padding: 14px 2px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--cream); color: var(--ink); cursor: pointer; transition: all 0.15s; }
+        .seg .sub { display: block; font-family: "Space Mono", ui-monospace, monospace; font-weight: 400; font-size: 10.5px; margin-top: 3px; color: var(--muted); }
+        .seg button:hover { border-color: var(--berry); }
+        .seg button:active { transform: scale(0.97); }
+        .seg button.on { border-color: var(--berry); background: #fff; }
+        .seg .badge { position: absolute; top: -7px; right: -7px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--berry); color: #fff; font-family: "Space Mono", monospace; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(196,30,58,.35); }
 
-        .qlabel { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 15px; margin: 18px 0 10px; }
-        .stepper { display: grid; grid-template-columns: 58px 1fr 58px; gap: 8px; align-items: stretch; }
-        .stepper .step { border: 1.5px solid var(--line); background: var(--cream); border-radius: 14px; font-size: 28px; font-weight: 700; color: var(--berry-deep); cursor: pointer; font-family: "Space Mono", monospace; line-height: 1; transition: background 0.12s, transform 0.08s; display: flex; align-items: center; justify-content: center; }
-        .stepper .step:hover { background: #fdeee7; }
-        .stepper .step:active { transform: scale(0.93); }
-        .stepper input { text-align: center; font-family: "Space Mono", monospace; font-weight: 700; font-size: 34px; border: 1.5px solid var(--line); border-radius: 14px; background: #fff; color: var(--ink); width: 100%; font-variant-numeric: tabular-nums; }
-        .stepper input:focus { outline: none; border-color: var(--berry); }
-
-        .qpresets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-top: 9px; }
-        .qpresets button { font-family: "Space Mono", monospace; font-weight: 700; font-size: 16px; padding: 11px 0; border: 1.5px solid var(--line); background: var(--cream); border-radius: 11px; color: var(--berry-deep); cursor: pointer; transition: all 0.12s; }
-        .qpresets button:hover { border-color: var(--berry); }
-        .qpresets button:active { transform: scale(0.95); }
-        .qpresets button.on { background: var(--berry); color: #fff; border-color: var(--berry); box-shadow: 0 4px 12px rgba(196, 30, 58, 0.24); }
+        .cart-empty { text-align: center; color: var(--muted); font-size: 13.5px; padding: 18px 0 4px; }
+        .cart { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+        .citem { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--cream); border: 1.5px solid var(--line); border-radius: 13px; }
+        .cinfo { min-width: 0; }
+        .cinfo b { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 14px; display: block; }
+        .cinfo small { font-family: "Space Mono", monospace; font-size: 11px; color: var(--muted); }
+        .cqty { display: flex; align-items: stretch; }
+        .cqty button { width: 34px; height: 34px; border: 1.5px solid var(--line); background: #fff; color: var(--berry-deep); font-size: 20px; line-height: 1; cursor: pointer; font-family: "Space Mono", monospace; }
+        .cqty button:first-child { border-radius: 10px 0 0 10px; }
+        .cqty button:last-child { border-radius: 0 10px 10px 0; }
+        .cqty button:active { background: #fdeee7; }
+        .cqty input { width: 44px; text-align: center; border: 1.5px solid var(--line); border-left: 0; border-right: 0; font-family: "Space Mono", monospace; font-weight: 700; font-size: 16px; background: #fff; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
+        .cqty input::-webkit-outer-spin-button, .cqty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .cqty input:focus { outline: none; }
+        .cltotal { font-family: "Space Mono", monospace; font-weight: 700; font-size: 15px; min-width: 4.2rem; text-align: right; font-variant-numeric: tabular-nums; }
+        .crem { width: 28px; height: 28px; flex: none; border: 1.5px solid var(--line); background: #fff; color: var(--muted); border-radius: 8px; font-size: 16px; line-height: 1; cursor: pointer; }
+        .crem:hover { border-color: var(--warn); color: var(--warn); }
 
         .readout { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px; padding-top: 16px; border-top: 2px dotted var(--line); }
         .rk { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
@@ -656,21 +616,8 @@ export default function StrawberryRegister() {
         .sale .amt { font-family: "Space Mono", monospace; font-weight: 700; font-size: 15px; color: var(--berry); text-align: right; font-variant-numeric: tabular-nums; }
         .void { width: 30px; height: 30px; flex: 0 0 auto; border: 1.5px solid var(--line); background: var(--paper); color: var(--muted); border-radius: 9px; font-size: 17px; line-height: 1; cursor: pointer; transition: all 0.12s; }
         .void:hover:not(:disabled) { border-color: var(--warn); color: var(--warn); background: #fdeee7; }
-        .void:active:not(:disabled) { transform: scale(0.9); }
         .void:disabled { opacity: 0.5; cursor: default; }
         .empty { text-align: center; color: var(--muted); font-size: 13.5px; padding: 22px 0; line-height: 1.5; }
-
-        .setrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
-        .setrow:first-of-type { border-top: none; margin-top: 12px; }
-        .setrow label { font-size: 14px; font-weight: 600; }
-        .field { position: relative; }
-        .field .pfx { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-family: "Space Mono", monospace; color: var(--muted); font-weight: 700; }
-        .field input { width: 108px; font-family: "Space Mono", monospace; font-weight: 700; font-size: 16px; padding: 9px 10px 9px 24px; border: 1.5px solid var(--line); border-radius: 11px; text-align: right; font-variant-numeric: tabular-nums; }
-        .field input.nopfx { padding-left: 10px; }
-        .field input:focus { outline: none; border-color: var(--berry); }
-        .save { width: 100%; margin-top: 14px; font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 15px; padding: 13px; border: none; border-radius: 12px; background: var(--leaf); color: #fff; cursor: pointer; }
-        .save:active { transform: scale(0.985); }
-        .hint { font-size: 12px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
 
         .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; padding: 13px 20px; border-radius: 13px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22); z-index: 50; font-family: "Bricolage Grotesque", sans-serif; }
 

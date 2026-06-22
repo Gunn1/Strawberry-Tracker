@@ -135,9 +135,11 @@ model Sale {
   cashier        User?    @relation(fields: [cashierId], references: [id])
 
   location       String?  // where the sale happened (e.g. "The Farm", a market), stored by name
+  groupId        String?  // ties line items of one multi-item transaction together
 
   @@index([createdAt])
   @@index([cashierId])
+  @@index([groupId])
 }
 
 // Selling locations the till can ring up at (the farm, farmers markets, etc.).
