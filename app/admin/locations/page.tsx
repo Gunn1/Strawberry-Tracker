@@ -6,6 +6,7 @@ interface Loc {
   id: string;
   name: string;
   active: boolean;
+  trackStock: boolean;
 }
 
 export default function LocationsPage() {
@@ -77,7 +78,7 @@ export default function LocationsPage() {
     }
   }
 
-  async function patch(id: string, body: { active?: boolean }) {
+  async function patch(id: string, body: { active?: boolean; trackStock?: boolean }) {
     setBusyId(id);
     setError(null);
     try {
@@ -147,6 +148,14 @@ export default function LocationsPage() {
             {locations.map((l) => (
               <li className={`loc ${l.active ? "" : "off"}`} key={l.id}>
                 <span className="name">{l.name}{!l.active && <span className="hidden-tag">hidden</span>}</span>
+                <button
+                  className={`track ${l.trackStock ? "on" : ""}`}
+                  onClick={() => patch(l.id, { trackStock: !l.trackStock })}
+                  disabled={busyId === l.id}
+                  title="Track on-hand inventory at this location"
+                >
+                  {l.trackStock ? "Tracking stock ✓" : "Track stock"}
+                </button>
                 <button className="toggle" onClick={() => patch(l.id, { active: !l.active })} disabled={busyId === l.id}>
                   {l.active ? "Hide" : "Show"}
                 </button>
@@ -176,9 +185,13 @@ export default function LocationsPage() {
         .add:disabled { opacity: .6; cursor: default; }
 
         .loclist { list-style: none; margin: 1.6rem 0 0; padding: 0; }
-        .loc { display: flex; align-items: center; gap: .8rem; padding: .9rem 0; border-top: 1px solid var(--line); }
+        .loc { display: flex; align-items: center; gap: .6rem; padding: .9rem 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
         .loc:first-child { border-top: 0; }
-        .name { flex: 1; font-weight: 700; display: flex; align-items: center; gap: .6rem; }
+        .name { flex: 1; min-width: 8rem; font-weight: 700; display: flex; align-items: center; gap: .6rem; }
+        .track { font-family: var(--body); font-weight: 600; font-size: .8rem; color: var(--muted); background: #fff; border: 1px solid var(--line); padding: .45em .9em; border-radius: var(--r-pill); cursor: pointer; white-space: nowrap; }
+        .track:hover:not(:disabled) { border-color: var(--sage, #8FA06A); color: var(--ink); }
+        .track.on { color: #3f6a2c; background: #e7f1da; border-color: #c2d8a8; }
+        .track:disabled { opacity: .5; cursor: default; }
         .loc.off .name { color: var(--muted); }
         .hidden-tag { font-family: var(--data); font-size: .66rem; letter-spacing: .05em; text-transform: uppercase; color: #845410; background: #fbeac9; padding: .2em .55em; border-radius: 999px; }
         .toggle { font-family: var(--body); font-weight: 600; font-size: .85rem; color: var(--wagon-deep); background: var(--paper-2); border: 1px solid var(--line); padding: .45em 1em; border-radius: var(--r-pill); cursor: pointer; }

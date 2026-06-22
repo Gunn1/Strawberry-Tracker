@@ -103,6 +103,26 @@ export async function POST(req: Request) {
       })),
     });
 
+    // Draw the sold quantities down from this location's inventory, if it tracks stock.
+    if (location) {
+      const loc = await prisma.location.findUnique({
+        where: { name: location },
+        select: { id: true, trackStock: true, stockQuart: true, stockAsparagus: true, stockRhubarb: true },
+      });
+      if (loc?.trackStock) {
+        const sold = { QUART: 0, ASPARAGUS: 0, RHUBARB: 0 } as Record<SaleMode, number>;
+        for (const l of lines) sold[l.mode] += l.quantity;
+        await prisma.location.update({
+          where: { id: loc.id },
+          data: {
+            stockQuart: Math.max(0, loc.stockQuart - sold.QUART),
+            stockAsparagus: Math.max(0, loc.stockAsparagus - sold.ASPARAGUS),
+            stockRhubarb: Math.max(0, loc.stockRhubarb - sold.RHUBARB),
+          },
+        });
+      }
+    }
+
     return NextResponse.json({ ok: true, groupId, changeCents: change }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to save sale" }, { status: 500 });

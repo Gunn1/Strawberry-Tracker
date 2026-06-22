@@ -107,7 +107,16 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const prisma = getPrisma();
   const { id } = await ctx.params;
   try {
+    const sale = await prisma.sale.findUnique({ where: { id }, select: { mode: true, quantity: true, location: true } });
     await prisma.sale.delete({ where: { id } });
+    // Put the quantity back on the shelf if its location tracks inventory.
+    if (sale?.location) {
+      const loc = await prisma.location.findUnique({ where: { name: sale.location }, select: { id: true, trackStock: true } });
+      if (loc?.trackStock) {
+        const field = ({ QUART: "stockQuart", ASPARAGUS: "stockAsparagus", RHUBARB: "stockRhubarb" } as const)[sale.mode as SaleMode];
+        await prisma.location.update({ where: { id: loc.id }, data: { [field]: { increment: sale.quantity } } });
+      }
+    }
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Failed to void sale" }, { status: 500 });

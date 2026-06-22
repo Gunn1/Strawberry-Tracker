@@ -3,6 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/prisma";
 
+const LOC_SELECT = {
+  id: true,
+  name: true,
+  active: true,
+  trackStock: true,
+  stockQuart: true,
+  stockAsparagus: true,
+  stockRhubarb: true,
+} as const;
+
 // GET /api/locations -> active locations (for the till). ?all=1 (admins) lists all.
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -12,7 +22,7 @@ export async function GET(req: Request) {
   const locations = await prisma.location.findMany({
     where: all ? {} : { active: true },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, active: true },
+    select: LOC_SELECT,
   });
   return NextResponse.json(locations);
 }
@@ -38,7 +48,7 @@ export async function POST(req: Request) {
       where: { name },
       update: { active: true },
       create: { name },
-      select: { id: true, name: true, active: true },
+      select: LOC_SELECT,
     });
     return NextResponse.json(loc, { status: 201 });
   } catch {

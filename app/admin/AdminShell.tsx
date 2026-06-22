@@ -26,6 +26,7 @@ export default function AdminShell({
   const primary = [
     { href: "/admin", label: "Status" },
     { href: "/admin/field", label: "Field" },
+    { href: "/admin/inventory", label: "Inventory" },
     ...(isAdmin ? [{ href: "/admin/sales", label: "Sales" }] : []),
     { href: "/till", label: "Till" },
   ];

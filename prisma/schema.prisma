@@ -144,10 +144,14 @@ model Sale {
 
 // Selling locations the till can ring up at (the farm, farmers markets, etc.).
 model Location {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String   @unique
+  active         Boolean  @default(true)
+  trackStock     Boolean  @default(false) // track on-hand inventory at this location?
+  stockQuart     Int      @default(0) // quarts of strawberries on hand
+  stockAsparagus Int      @default(0) // pounds of asparagus on hand
+  stockRhubarb   Int      @default(0) // pounds of rhubarb on hand
+  createdAt      DateTime @default(now())
 }
 
 // A bookable U-pick window on a given day. Times are wall-clock minutes from

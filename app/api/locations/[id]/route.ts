@@ -17,24 +17,29 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const prisma = getPrisma();
   const { id } = await ctx.params;
 
-  let body: { name?: string; active?: boolean };
+  let body: { name?: string; active?: boolean; trackStock?: boolean };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const data: { name?: string; active?: boolean } = {};
+  const data: { name?: string; active?: boolean; trackStock?: boolean } = {};
   if (body.name !== undefined) {
     const name = body.name.trim().slice(0, 60);
     if (!name) return NextResponse.json({ error: "Name can't be empty." }, { status: 400 });
     data.name = name;
   }
   if (body.active !== undefined) data.active = !!body.active;
+  if (body.trackStock !== undefined) data.trackStock = !!body.trackStock;
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
-    const loc = await prisma.location.update({ where: { id }, data, select: { id: true, name: true, active: true } });
+    const loc = await prisma.location.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, active: true, trackStock: true, stockQuart: true, stockAsparagus: true, stockRhubarb: true },
+    });
     return NextResponse.json(loc);
   } catch {
     return NextResponse.json({ error: "Couldn't update that location." }, { status: 500 });
