@@ -102,6 +102,7 @@ model Product {
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
   sales      Sale[]
+  stock      LocationStock[]
 }
 
 // Singleton row of stand prices + today's open status. id is always "default".
@@ -151,14 +152,25 @@ model Sale {
 
 // Selling locations the till can ring up at (the farm, farmers markets, etc.).
 model Location {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  active         Boolean  @default(true)
-  trackStock     Boolean  @default(false) // track on-hand inventory at this location?
-  stockQuart     Int      @default(0) // quarts of strawberries on hand
-  stockAsparagus Int      @default(0) // pounds of asparagus on hand
-  stockRhubarb   Int      @default(0) // pounds of rhubarb on hand
-  createdAt      DateTime @default(now())
+  id         String          @id @default(cuid())
+  name       String          @unique
+  active     Boolean         @default(true)
+  trackStock Boolean         @default(false) // track on-hand inventory here?
+  stock      LocationStock[]
+  createdAt  DateTime        @default(now())
+}
+
+// On-hand quantity of a product at a location.
+model LocationStock {
+  id         String   @id @default(cuid())
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity   Int      @default(0)
+
+  @@unique([locationId, productId])
+  @@index([productId])
 }
 
 // A bookable U-pick window on a given day. Times are wall-clock minutes from

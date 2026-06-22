@@ -3,14 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/prisma";
 
-// The original three products still map to per-location stock columns, so
-// inventory keeps working for them. (New products don't track stock yet.)
-const STOCK_COL: Record<string, "stockQuart" | "stockAsparagus" | "stockRhubarb"> = {
-  prod_quart: "stockQuart",
-  prod_asparagus: "stockAsparagus",
-  prod_rhubarb: "stockRhubarb",
-};
-
 function startOfToday(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -98,26 +90,26 @@ export async function POST(req: Request) {
       })),
     });
 
-    // Draw down per-location stock for the original three products.
+    // Draw down per-location, per-product stock if this location tracks it.
     if (location) {
       const loc = await prisma.location.findUnique({
         where: { name: location },
-        select: { id: true, trackStock: true, stockQuart: true, stockAsparagus: true, stockRhubarb: true },
+        select: { id: true, trackStock: true, stock: { select: { productId: true, quantity: true } } },
       });
       if (loc?.trackStock) {
-        const dec = { stockQuart: 0, stockAsparagus: 0, stockRhubarb: 0 };
-        for (const l of goodLines) {
-          const col = STOCK_COL[l.productId];
-          if (col) dec[col] += l.quantity;
-        }
-        await prisma.location.update({
-          where: { id: loc.id },
-          data: {
-            stockQuart: Math.max(0, loc.stockQuart - dec.stockQuart),
-            stockAsparagus: Math.max(0, loc.stockAsparagus - dec.stockAsparagus),
-            stockRhubarb: Math.max(0, loc.stockRhubarb - dec.stockRhubarb),
-          },
-        });
+        const onHand = new Map(loc.stock.map((s) => [s.productId, s.quantity]));
+        const sold = new Map<string, number>();
+        for (const l of goodLines) sold.set(l.productId, (sold.get(l.productId) ?? 0) + l.quantity);
+        await prisma.$transaction(
+          [...sold].map(([productId, qty]) => {
+            const next = Math.max(0, (onHand.get(productId) ?? 0) - qty);
+            return prisma.locationStock.upsert({
+              where: { locationId_productId: { locationId: loc.id, productId } },
+              update: { quantity: next },
+              create: { locationId: loc.id, productId, quantity: next },
+            });
+          }),
+        );
       }
     }
 

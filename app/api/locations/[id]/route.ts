@@ -38,7 +38,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const loc = await prisma.location.update({
       where: { id },
       data,
-      select: { id: true, name: true, active: true, trackStock: true, stockQuart: true, stockAsparagus: true, stockRhubarb: true },
+      select: { id: true, name: true, active: true, trackStock: true, stock: { select: { productId: true, quantity: true } } },
     });
     return NextResponse.json(loc);
   } catch {

@@ -2,39 +2,46 @@
 
 import { useEffect, useState } from "react";
 
+interface Product {
+  id: string;
+  name: string;
+  unit: string;
+}
+
+interface StockRow {
+  productId: string;
+  quantity: number;
+}
+
 interface Loc {
   id: string;
   name: string;
   trackStock: boolean;
-  stockQuart: number;
-  stockAsparagus: number;
-  stockRhubarb: number;
+  stock: StockRow[];
 }
 
-const PRODUCTS: { key: "stockQuart" | "stockAsparagus" | "stockRhubarb"; label: string; unit: string }[] = [
-  { key: "stockQuart", label: "Strawberries", unit: "qt" },
-  { key: "stockAsparagus", label: "Asparagus", unit: "lb" },
-  { key: "stockRhubarb", label: "Rhubarb", unit: "lb" },
-];
-
-type Draft = Record<"stockQuart" | "stockAsparagus" | "stockRhubarb", string>;
+// productId -> on-hand quantity at a location.
+function stockMap(loc: Loc): Record<string, number> {
+  const m: Record<string, number> = {};
+  for (const s of loc.stock) m[s.productId] = s.quantity;
+  return m;
+}
 
 export default function InventoryPage() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [locs, setLocs] = useState<Loc[]>([]);
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
 
   function seedDrafts(list: Loc[]) {
-    const d: Record<string, Draft> = {};
+    const d: Record<string, Record<string, string>> = {};
     for (const l of list) {
-      d[l.id] = {
-        stockQuart: String(l.stockQuart),
-        stockAsparagus: String(l.stockAsparagus),
-        stockRhubarb: String(l.stockRhubarb),
-      };
+      const m = stockMap(l);
+      d[l.id] = {};
+      for (const pid of Object.keys(m)) d[l.id][pid] = String(m[pid]);
     }
     setDrafts(d);
   }
@@ -43,11 +50,13 @@ export default function InventoryPage() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch("/api/locations");
-        if (!res.ok) throw new Error();
-        const all: Loc[] = await res.json();
+        const [pRes, lRes] = await Promise.all([fetch("/api/products"), fetch("/api/locations")]);
+        if (!pRes.ok || !lRes.ok) throw new Error();
+        const prods: Product[] = await pRes.json();
+        const all: Loc[] = await lRes.json();
         const tracked = all.filter((l) => l.trackStock);
         if (!active) return;
+        setProducts(prods);
         setLocs(tracked);
         seedDrafts(tracked);
       } catch {
@@ -68,19 +77,17 @@ export default function InventoryPage() {
   }, [toast]);
 
   async function save(loc: Loc) {
-    const d = drafts[loc.id];
-    if (!d || savingId) return;
+    const d = drafts[loc.id] ?? {};
+    if (savingId) return;
     setSavingId(loc.id);
     setError(null);
     try {
+      const stock: Record<string, number> = {};
+      for (const p of products) stock[p.id] = Math.max(0, parseInt(d[p.id] ?? "0", 10) || 0);
       const res = await fetch(`/api/locations/${loc.id}/stock`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stockQuart: Math.max(0, parseInt(d.stockQuart, 10) || 0),
-          stockAsparagus: Math.max(0, parseInt(d.stockAsparagus, 10) || 0),
-          stockRhubarb: Math.max(0, parseInt(d.stockRhubarb, 10) || 0),
-        }),
+        body: JSON.stringify({ stock }),
       });
       if (!res.ok) throw new Error();
       const updated: Loc = await res.json();
@@ -110,18 +117,21 @@ export default function InventoryPage() {
           <p className="status-msg">Loading…</p>
         ) : locs.length === 0 ? (
           <p className="status-msg">No locations track inventory yet. An admin can turn it on for a market under <b>Manage → Locations</b>.</p>
+        ) : products.length === 0 ? (
+          <p className="status-msg">No products yet. Add some under <b>Manage → Products</b>.</p>
         ) : (
           locs.map((loc) => {
-            const d = drafts[loc.id];
+            const m = stockMap(loc);
+            const d = drafts[loc.id] ?? {};
             return (
               <section className="loc" key={loc.id}>
                 <h2>{loc.name}</h2>
                 <div className="rows">
-                  {PRODUCTS.map((p) => {
-                    const remaining = loc[p.key];
+                  {products.map((p) => {
+                    const remaining = m[p.id] ?? 0;
                     return (
-                      <div className="srow" key={p.key}>
-                        <span className="pl">{p.label}</span>
+                      <div className="srow" key={p.id}>
+                        <span className="pl">{p.name}</span>
                         <span className={`rem ${remaining === 0 ? "out" : remaining < 5 ? "low" : ""}`}>
                           {remaining} <small>{p.unit} left</small>
                         </span>
@@ -130,9 +140,9 @@ export default function InventoryPage() {
                             type="number"
                             inputMode="numeric"
                             min="0"
-                            value={d?.[p.key] ?? ""}
-                            onChange={(e) => setDrafts((m) => ({ ...m, [loc.id]: { ...m[loc.id], [p.key]: e.target.value } }))}
-                            aria-label={`${loc.name} ${p.label} stock`}
+                            value={d[p.id] ?? ""}
+                            onChange={(e) => setDrafts((s) => ({ ...s, [loc.id]: { ...s[loc.id], [p.id]: e.target.value } }))}
+                            aria-label={`${loc.name} ${p.name} stock`}
                           />
                           <span className="u">{p.unit}</span>
                         </div>

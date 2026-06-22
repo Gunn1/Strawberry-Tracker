@@ -8,9 +8,7 @@ const LOC_SELECT = {
   name: true,
   active: true,
   trackStock: true,
-  stockQuart: true,
-  stockAsparagus: true,
-  stockRhubarb: true,
+  stock: { select: { productId: true, quantity: true } },
 } as const;
 
 // GET /api/locations -> active locations (for the till). ?all=1 (admins) lists all.

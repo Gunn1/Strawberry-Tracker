@@ -3,12 +3,6 @@ import { getServerSession } from "next-auth";
 import { getPrisma } from "@/prisma";
 import { authOptions } from "@/lib/auth";
 
-const STOCK_COL: Record<string, "stockQuart" | "stockAsparagus" | "stockRhubarb"> = {
-  prod_quart: "stockQuart",
-  prod_asparagus: "stockAsparagus",
-  prod_rhubarb: "stockRhubarb",
-};
-
 const SALE_SELECT = {
   id: true,
   createdAt: true,
@@ -106,12 +100,16 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   try {
     const sale = await prisma.sale.findUnique({ where: { id }, select: { productId: true, quantity: true, location: true } });
     await prisma.sale.delete({ where: { id } });
-    // Put stock back if its location tracks inventory (original three only).
-    const col = sale?.productId ? STOCK_COL[sale.productId] : undefined;
-    if (sale?.location && col) {
+    // Put stock back if its location tracks inventory.
+    if (sale?.location && sale.productId) {
+      const productId = sale.productId;
       const loc = await prisma.location.findUnique({ where: { name: sale.location }, select: { id: true, trackStock: true } });
       if (loc?.trackStock) {
-        await prisma.location.update({ where: { id: loc.id }, data: { [col]: { increment: sale.quantity } } });
+        await prisma.locationStock.upsert({
+          where: { locationId_productId: { locationId: loc.id, productId } },
+          update: { quantity: { increment: sale.quantity } },
+          create: { locationId: loc.id, productId, quantity: sale.quantity },
+        });
       }
     }
     return NextResponse.json({ ok: true });

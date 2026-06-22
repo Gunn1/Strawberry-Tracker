@@ -8,38 +8,51 @@ function clampInt(v: unknown): number | null {
   return Math.max(0, Math.round(v as number));
 }
 
-const STOCK_KEYS = ["stockQuart", "stockAsparagus", "stockRhubarb"] as const;
+const LOC_SELECT = {
+  id: true,
+  name: true,
+  active: true,
+  trackStock: true,
+  stock: { select: { productId: true, quantity: true } },
+} as const;
 
-// PATCH /api/locations/:id/stock -> set on-hand stock levels (any signed-in staff).
+// PATCH /api/locations/:id/stock -> set on-hand stock per product (any staff).
+// Body: { stock: { [productId]: quantity } }.
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const prisma = getPrisma();
   const { id } = await ctx.params;
 
-  let body: Record<string, unknown>;
+  let body: { stock?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const data: Record<string, number> = {};
-  for (const key of STOCK_KEYS) {
-    if (body[key] !== undefined) {
-      const v = clampInt(body[key]);
-      if (v === null) return NextResponse.json({ error: "Invalid stock value" }, { status: 400 });
-      data[key] = v;
-    }
+  const stock = body.stock;
+  if (!stock || typeof stock !== "object") return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+
+  const entries: { productId: string; quantity: number }[] = [];
+  for (const [productId, raw] of Object.entries(stock)) {
+    const quantity = clampInt(raw);
+    if (quantity === null) return NextResponse.json({ error: "Invalid stock value" }, { status: 400 });
+    entries.push({ productId, quantity });
   }
-  if (Object.keys(data).length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  if (entries.length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
   try {
-    const loc = await prisma.location.update({
-      where: { id },
-      data,
-      select: { id: true, name: true, active: true, trackStock: true, stockQuart: true, stockAsparagus: true, stockRhubarb: true },
-    });
+    await prisma.$transaction(
+      entries.map((e) =>
+        prisma.locationStock.upsert({
+          where: { locationId_productId: { locationId: id, productId: e.productId } },
+          update: { quantity: e.quantity },
+          create: { locationId: id, productId: e.productId, quantity: e.quantity },
+        }),
+      ),
+    );
+    const loc = await prisma.location.findUnique({ where: { id }, select: LOC_SELECT });
     return NextResponse.json(loc);
   } catch {
     return NextResponse.json({ error: "Couldn't update stock." }, { status: 500 });
