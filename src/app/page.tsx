@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import SiteHeader from "@/components/SiteHeader";
 import { api, errorMessage } from "@/lib/api-client";
-import type { OpenStatus } from "@/lib/hours";
+import { STATUS_LABEL, type OpenStatus } from "@/lib/hours";
 
 /* ------------------------------------------------------------------ */
 /* Red Wagon Farm — landing page                                       */
@@ -17,22 +18,6 @@ const FACEBOOK_URL = "https://www.facebook.com/CartersRedWagonFarm";
 const DIRECTIONS_URL =
   "https://www.google.com/maps/dir/?api=1&destination=14766+119th+Ave+Park+Rapids+MN+56470";
 
-// Main nav links — shared by the desktop bar and the mobile menu.
-const NAV: { href: string; label: string }[] = [
-  { href: "#places", label: "U-Pick" },
-  { href: "#season", label: "In Season" },
-  { href: "#story", label: "Our Family" },
-  { href: "#contact", label: "Contact" },
-];
-
-// Customer-facing "are we open?" status (set by staff at /admin). Kept short
-// since it shows as a chip in the header.
-const STATUS_LABEL: Partial<Record<OpenStatus, string>> = {
-  open: "Open today",
-  closed: "Closed today",
-  pickedout: "Picked out",
-  // "hidden" (out of season) deliberately has no label: the chip stays off.
-};
 interface FarmStatus {
   openStatus: OpenStatus;
   statusNote: string;
@@ -73,7 +58,6 @@ export default function RedWagonFarm() {
   };
 
   // Mobile nav menu.
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // "Are we open today?" banner + configurable hours — set by staff at /admin.
   const [status, setStatus] = useState<FarmStatus | null>(null);
@@ -147,42 +131,7 @@ export default function RedWagonFarm() {
 
   return (
     <>
-      {/* ===== header (with live open-today status chip) ===== */}
-      <header className="site">
-        <div className="wrap">
-          <div className="brand-group">
-            <a className="brand" href="#" aria-label="Carter's Red Wagon Farm — home" onClick={() => setMenuOpen(false)}>
-              <Image className="mark" src="/Logo.webp" alt="Carter's Red Wagon Farm" width={240} height={147} priority />
-            </a>
-            {status && status.openStatus !== "hidden" && STATUS_LABEL[status.openStatus] && (
-              <span className={`hdr-status sbn-${status.openStatus}`} title={status.statusNote || undefined}>
-                <span className="sbn-dot" />
-                {STATUS_LABEL[status.openStatus]}
-              </span>
-            )}
-          </div>
-          <nav className="main">
-            {NAV.map((n) => (
-              <a key={n.href} href={n.href}>{n.label}</a>
-            ))}
-            <a className="btn btn--primary nav-cta" href="tel:+12187324979">Call (218) 732-4979</a>
-          </nav>
-          <button
-            className={`menu-btn ${menuOpen ? "open" : ""}`}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <span></span><span></span><span></span>
-          </button>
-        </div>
-        <div className={`mobile-menu ${menuOpen ? "open" : ""}`}>
-          {NAV.map((n) => (
-            <a key={n.href} href={n.href} onClick={() => setMenuOpen(false)}>{n.label}</a>
-          ))}
-          <a className="btn btn--primary" href="tel:+12187324979" onClick={() => setMenuOpen(false)}>Call (218) 732-4979</a>
-        </div>
-      </header>
+      <SiteHeader status={status} />
 
       {/* ===== HERO + signature board ===== */}
       <section className="hero">
@@ -576,43 +525,8 @@ export default function RedWagonFarm() {
         .btn--onpine:hover { background: #fff; transform: translateY(-2px); }
         :focus-visible { outline: 3px solid var(--wheat); outline-offset: 3px; border-radius: 4px; }
 
-        /* live "open today" status chip in the header */
-        .brand-group { display: flex; align-items: center; gap: .7rem; min-width: 0; }
-        .hdr-status { display: inline-flex; align-items: center; gap: .42rem; font-family: var(--display); font-weight: 600; font-size: .9rem; letter-spacing: -.01em; padding: .28em .8em; border-radius: 999px; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(39,31,23,.08); }
-        .sbn-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
-        .sbn-open { background: #e3f1da; color: #265020; }
-        .sbn-open .sbn-dot { animation: sbpulse 2.2s ease-in-out infinite; }
-        @keyframes sbpulse { 0% { box-shadow: 0 0 0 0 rgba(38,80,32,.55); } 70% { box-shadow: 0 0 0 5px rgba(38,80,32,0); } 100% { box-shadow: 0 0 0 0 rgba(38,80,32,0); } }
-        @media (prefers-reduced-motion: reduce) { .sbn-open .sbn-dot { animation: none; } }
-        .sbn-closed { background: #fbe4da; color: var(--wagon-deep); }
-        .sbn-pickedout { background: #fbeac9; color: #845410; }
-        .sbn-preseason { background: #e8ece5; color: var(--pine); }
-        @media (max-width: 380px) { .hdr-status { font-size: .82rem; padding: .25em .65em; } }
 
 
-        header.site {
-          position: sticky; top: 0; z-index: 50;
-          background: color-mix(in srgb, var(--paper) 86%, transparent);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid var(--line);
-        }
-        header.site .wrap { display: flex; align-items: center; justify-content: space-between; padding-block: .85rem; }
-        .brand { display: flex; align-items: center; gap: .65rem; }
-        .brand .mark { width: auto; height: 54px; flex: none; display: block; }
-        .brand .name { font-family: var(--display); font-weight: 900; font-size: 1.32rem; letter-spacing: -.02em; line-height: 1; }
-        .brand .name small { display: block; font-family: var(--data); font-weight: 400; font-size: .56rem; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
-        nav.main { display: flex; align-items: center; gap: 1.7rem; }
-        nav.main a { font-weight: 500; font-size: .96rem; position: relative; }
-        nav.main a::after { content: ""; position: absolute; left: 0; bottom: -5px; width: 0; height: 2px; background: var(--wagon); transition: width .2s ease; }
-        nav.main a:hover::after { width: 100%; }
-        .nav-cta { margin-left: .4rem; }
-        .menu-btn { display: none; background: none; border: 0; cursor: pointer; padding: 8px; }
-        .menu-btn span { display: block; width: 24px; height: 2px; background: var(--ink); margin: 5px 0; transition: transform .2s ease, opacity .2s ease; transform-origin: center; }
-        .menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-        .menu-btn.open span:nth-child(2) { opacity: 0; }
-        .menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-        .mobile-menu { display: none; }
 
         .hero { position: relative; padding-top: clamp(40px, 6vw, 80px); padding-bottom: clamp(48px, 7vw, 96px); }
         .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(28px, 4vw, 60px); align-items: center; }
@@ -850,16 +764,6 @@ export default function RedWagonFarm() {
           .places, .grid-produce { grid-template-columns: 1fr 1fr; }
           .timeline { grid-template-columns: 1fr 1fr; }
           .foot-grid { grid-template-columns: 1fr 1fr; }
-          nav.main { display: none; }
-          .menu-btn { display: block; }
-          .mobile-menu.open {
-            display: flex; flex-direction: column;
-            padding: .4rem var(--gut) 1.2rem;
-            background: var(--paper); border-top: 1px solid var(--line);
-          }
-          .mobile-menu.open a { padding: .95rem .2rem; font-weight: 700; font-size: 1.08rem; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
-          .mobile-menu.open a:last-of-type { border-bottom: 0; }
-          .mobile-menu.open .btn { margin-top: .9rem; justify-content: center; color: #fff; border-bottom: 0; }
         }
         @media (max-width: 600px) {
           .guidelines { grid-template-columns: 1fr; }

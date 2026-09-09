@@ -18,6 +18,16 @@ export function isOverrideStatus(value: unknown): value is OverrideStatus {
   return (OVERRIDE_STATUSES as readonly unknown[]).includes(value);
 }
 
+/**
+ * What each status is called for customers. "hidden" has no label on purpose:
+ * out of season the chip is simply not shown.
+ */
+export const STATUS_LABEL: Partial<Record<OpenStatus, string>> = {
+  open: "Open today",
+  closed: "Closed today",
+  pickedout: "Picked out",
+};
+
 /** "1,2,3" -> [1, 2, 3], dropping anything that isn't a weekday number. */
 export function parseDays(openDays: string): number[] {
   return openDays

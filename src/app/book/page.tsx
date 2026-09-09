@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+
+import SiteHeader from "@/components/SiteHeader";
 import { useEffect, useState } from "react";
 
 import { api, errorMessage } from "@/lib/api-client";
@@ -91,12 +93,7 @@ export default function BookPage() {
 
   return (
     <div className="page">
-      <header className="top">
-        <Link href="/" className="home">
-          <span className="dot" />
-          Carter&rsquo;s Red Wagon Farm
-        </Link>
-      </header>
+      <SiteHeader />
 
       <main className="shell">
         {booked ? (
@@ -230,14 +227,6 @@ export default function BookPage() {
 
       <style jsx>{`
         .page { min-height: 100vh; background: var(--paper); color: var(--ink); font-family: var(--body); }
-        .top { border-bottom: 1px solid var(--line); background: var(--paper-2); }
-        .home {
-          display: inline-flex; align-items: center; gap: 9px; padding: 14px 18px;
-          font-family: var(--display); font-weight: 600; font-size: 1.05rem;
-          color: var(--ink); text-decoration: none;
-        }
-        .home:hover { color: var(--wagon-deep); }
-        .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--wagon); }
 
         .shell { max-width: 560px; margin: 0 auto; padding: clamp(22px, 5vw, 44px) 18px 72px; }
         .eyebrow { font-family: var(--data); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--wagon-deep); }
