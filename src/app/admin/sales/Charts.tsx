@@ -1,0 +1,103 @@
+"use client";
+
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
+import { formatCents } from "@/lib/format/money";
+
+const WAGON = "#C5392C";
+const INK = "#271F17";
+const MUTED = "#6F6354";
+
+// Palette cycled across however many products there are.
+const PALETTE = ["#C5392C", "#8FA06A", "#D98B3A", "#6b4fa0", "#2f6f8f", "#b06a16", "#4f7a33", "#9e2a20"];
+
+const money = formatCents;
+const axisMoney = (cents: number) => `$${Math.round(cents / 100)}`;
+
+function shortDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+function longDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
+
+// Horizontal revenue bars by category (cashier, location, …).
+export function RevenueBars({ data }: { data: { name: string; revenue: number }[] }) {
+  const height = Math.max(110, data.length * 46);
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 14, bottom: 4, left: 0 }}>
+        <XAxis type="number" tickFormatter={axisMoney} tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+        <YAxis type="category" dataKey="name" width={112} tick={{ fontSize: 12, fill: INK }} axisLine={false} tickLine={false} />
+        <Tooltip cursor={{ fill: "rgba(39,31,23,0.05)" }} formatter={(v) => [money(v as number), "Revenue"]} />
+        <Bar dataKey="revenue" fill={WAGON} radius={[0, 6, 6, 0]} maxBarSize={26} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Label placed inside the donut ring so it can never overflow the container.
+interface SliceLabel {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+}
+function insideLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }: SliceLabel) {
+  if (percent < 0.05) return null; // skip tiny slivers
+  const RADIAN = Math.PI / 180;
+  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + r * Math.cos(-midAngle * RADIAN);
+  const y = cy + r * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
+      {Math.round(percent * 100)}%
+    </text>
+  );
+}
+
+// Revenue share by product (donut).
+export function ProductPie({ data }: { data: { name: string; value: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={95}
+          paddingAngle={2}
+          stroke="none"
+          label={insideLabel}
+          labelLine={false}
+        >
+          {data.map((d, i) => (
+            <Cell key={d.name} fill={PALETTE[i % PALETTE.length]} />
+          ))}
+        </Pie>
+        <Tooltip formatter={(v) => [money(v as number), "Revenue"]} />
+        <Legend iconType="circle" />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+// Vertical revenue bars over time (one bar per day, oldest → newest).
+export function DayBars({ data }: { data: { date: string; revenue: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
+        <XAxis dataKey="date" tickFormatter={shortDay} tick={{ fontSize: 10, fill: MUTED }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={16} />
+        <YAxis tickFormatter={axisMoney} tick={{ fontSize: 10, fill: MUTED }} width={44} axisLine={false} tickLine={false} />
+        <Tooltip formatter={(v) => [money(v as number), "Revenue"]} labelFormatter={(d) => longDay(d as string)} />
+        <Bar dataKey="revenue" fill={WAGON} radius={[4, 4, 0, 0]} maxBarSize={40} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

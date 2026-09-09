@@ -1,10 +1,12 @@
+# Which dependencies may run install scripts. pnpm refuses to guess, so every
+# entry has to be an explicit true or false.
 allowBuilds:
   '@prisma/engines': true
   esbuild: true
   prisma: true
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
   workerd: true
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+  # Image optimisation is handled by Cloudflare's IMAGES binding (see
+  # wrangler.jsonc), so sharp's native build is never used.
+  sharp: false
+  # Ships prebuilt platform binaries; the build script is only a fallback compile.
+  unrs-resolver: false

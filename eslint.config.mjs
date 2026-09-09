@@ -5,13 +5,16 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
+    ".open-next/**",
+    // wrangler's local build output; linting it drowns real findings.
+    ".wrangler/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Prisma's generated client — not ours to lint.
+    "src/generated/**",
   ]),
 ]);
 

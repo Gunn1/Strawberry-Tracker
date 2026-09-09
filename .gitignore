@@ -37,8 +37,8 @@ yarn-error.log*
 next-env.d.ts
 
 # generated prisma client
-/prisma/src/generated/prisma
-/generated/prisma
+/src/generated
+/generated
 
 # OpenNext
 .open-next

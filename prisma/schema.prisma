@@ -6,7 +6,7 @@
 generator client {
   provider = "prisma-client"
   runtime  = "workerd"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -212,14 +212,33 @@ model Subscriber {
   createdAt DateTime @default(now())
 }
 
-// U-pick field tracking: a patch holds rows; each row is picked in from its ends.
+// U-pick field tracking: a farm has fields, a field holds patches, a patch holds
+// rows, and each row is picked inward from its two ends.
+
+// A named parcel of land. Staff orient themselves on the map by the landmarks
+// at each end of its rows, so those are stored per field rather than guessed.
+model Field {
+  id        String   @id @default(cuid())
+  name      String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  farLabel  String   @default("") // what borders the far end of the rows, e.g. "Treeline"
+  nearLabel String   @default("") // what borders the near end, e.g. "Road & parking"
+  patches   Patch[]
+  createdAt DateTime @default(now())
+}
+
 model Patch {
   id        String     @id @default(cuid())
+  fieldId   String
+  field     Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   name      String
   sortOrder Int        @default(0)
   active    Boolean    @default(true)
   rows      FieldRow[]
   createdAt DateTime   @default(now())
+
+  @@index([fieldId])
 }
 
 enum RowStatus {

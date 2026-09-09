@@ -1,17 +1,26 @@
 {
-  "name": "cna-tmp",
+  "name": "strawberry-tracker",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "prisma generate && next build",
     "dev": "next dev -H 0.0.0.0",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
@@ -39,6 +48,8 @@
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vitest": "^3.2.4",
     "wrangler": "^4.98.0"
-  }
+  },
+  "description": "Farm stand tracker for Carter's Red Wagon Farm: public site, staff till, and field/inventory admin."
 }
