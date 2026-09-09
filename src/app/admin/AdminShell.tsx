@@ -27,6 +27,7 @@ export default function AdminShell({
     { href: "/admin", label: "Status" },
     { href: "/admin/field", label: "Field" },
     { href: "/admin/inventory", label: "Inventory" },
+    { href: "/admin/bookings", label: "Bookings" },
     ...(isAdmin ? [{ href: "/admin/sales", label: "Sales" }] : []),
     { href: "/till", label: "Till" },
   ];

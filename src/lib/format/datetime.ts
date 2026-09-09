@@ -84,6 +84,51 @@ export function startOfFarmDaysAgo(days: number, now: Date = new Date()): Date {
   return startOfFarmDay(new Date(start.getTime() - days * 24 * 60 * 60 * 1000));
 }
 
+/**
+ * Calendar-date arithmetic on YYYY-MM-DD strings. These are plain dates, not
+ * instants, so they are computed in UTC deliberately: adding a day to
+ * "2026-03-08" must give "2026-03-09" whatever the clocks did that night.
+ */
+export function addCalendarDays(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1, d + days));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    shifted.getUTCDate(),
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * A Postgres `date` column round-trips as midnight UTC, so read and write it in
+ * UTC. Going through farm-local here would shift the day by one.
+ */
+export function toCalendarDate(value: Date): string {
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    value.getUTCDate(),
+  ).padStart(2, "0")}`;
+}
+
+/** A YYYY-MM-DD string as the instant a `date` column stores. */
+export function fromCalendarDate(date: string): Date {
+  return new Date(`${date}T00:00:00.000Z`);
+}
+
+/** Weekday of a YYYY-MM-DD calendar date, 0 = Sunday. */
+export function calendarWeekday(date: string): number {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** A YYYY-MM-DD date as "Sat, Jun 27". */
+export function formatCalendarDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /** minutes-from-midnight -> "7 a.m." / "noon" / "12:30 p.m." */
 export function formatClock(min: number): string {
   if (min === 720) return "noon";

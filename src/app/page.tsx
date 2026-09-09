@@ -38,6 +38,11 @@ interface FarmStatus {
   statusNote: string;
 }
 
+/** Whether /book is worth pointing people at right now. */
+interface BookingState {
+  open: boolean;
+}
+
 // U-pick hours shown across the site (configurable from /admin). These defaults
 // render instantly; the live values load and replace them.
 const DEFAULT_HOURS = {
@@ -73,6 +78,7 @@ export default function RedWagonFarm() {
   // "Are we open today?" banner + configurable hours — set by staff at /admin.
   const [status, setStatus] = useState<FarmStatus | null>(null);
   const [hours, setHours] = useState<Hours>(DEFAULT_HOURS);
+  const [booking, setBooking] = useState(false);
   useEffect(() => {
     let active = true;
     (async () => {
@@ -87,6 +93,13 @@ export default function RedWagonFarm() {
         });
       } catch {
         // Leave the default hours and no status banner in place.
+      }
+
+      try {
+        const availability = await api.get<BookingState>("/api/booking/availability");
+        if (active) setBooking(availability.open);
+      } catch {
+        // No booking call to action rather than a broken one.
       }
     })();
     return () => {
@@ -272,7 +285,14 @@ export default function RedWagonFarm() {
             <div className="row"><span>Days</span><b>{hours.hoursDays}</b></div>
             <div className="row"><span>Finish by</span><b>{hours.hoursFinishBy}</b></div>
             <p className="callnote">Check today&apos;s status at the top of this page before you head out — we may close for weather, ripening, or once we&apos;re picked out. You can also call <a href="tel:+12187324979">(218) 732-4979</a> or check Facebook.</p>
-            <a className="btn btn--onpine" href="tel:+12187324979">Call before you come →</a>
+            {booking ? (
+              <>
+                <Link className="btn btn--onpine" href="/book">Book a picking time →</Link>
+                <a className="callalt" href="tel:+12187324979">Or call (218) 732-4979</a>
+              </>
+            ) : (
+              <a className="btn btn--onpine" href="tel:+12187324979">Call before you come →</a>
+            )}
             <a className="emailcta" href="#signup">Want a heads-up when picking opens? Get email updates →</a>
           </div>
         </div>
@@ -667,6 +687,8 @@ export default function RedWagonFarm() {
         .upick .eyebrow { color: #FBE0B6; }
         .upick-status { display: flex; width: fit-content; max-width: 100%; flex-direction: column; align-items: flex-start; gap: .3rem; background: #fff; color: var(--ink); border-radius: var(--r-md); padding: .7rem 1.1rem; margin-bottom: 1.3rem; font-size: .95rem; box-shadow: 0 8px 22px -12px rgba(0,0,0,.45); }
         .us-head { display: inline-flex; align-items: center; gap: .5rem; }
+        .callalt { display: block; margin-top: .7rem; font-size: .9rem; color: var(--muted); text-decoration: none; }
+        .callalt:hover { color: var(--wagon-deep); }
         .upick-status b { font-family: var(--display); font-weight: 600; }
         .upick-status .us-note { color: var(--muted); line-height: 1.45; }
         .us-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }

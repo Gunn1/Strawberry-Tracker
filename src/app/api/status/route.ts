@@ -3,7 +3,7 @@ import { badRequest, ok, readJson, serverError } from "@/lib/api/http";
 import { getPrisma } from "@/lib/db/prisma";
 import { farmNow } from "@/lib/format/datetime";
 import { displayHours, effectiveStatus, isOverrideStatus, parseDays } from "@/lib/hours";
-import { parseMinuteOfDay, trimTo } from "@/lib/validate";
+import { clampInt, parseMinuteOfDay, trimTo } from "@/lib/validate";
 
 /** The settings row is a singleton; this is its fixed primary key. */
 const SETTINGS_ID = "default";
@@ -30,6 +30,10 @@ export async function GET() {
         overrideStatus: settings.overrideStatus,
         overrideDate: settings.overrideDate,
         statusNote: settings.statusNote,
+        bookingEnabled: settings.bookingEnabled,
+        slotMinutes: settings.slotMinutes,
+        slotCapacity: settings.slotCapacity,
+        bookingDays: settings.bookingDays,
       },
     });
   } catch {
@@ -68,6 +72,21 @@ export async function PUT(req: Request) {
   }
 
   if (body.statusNote !== undefined) data.statusNote = trimTo(body.statusNote, 160);
+
+  // Booking. The windows themselves are derived from the schedule above, so
+  // these are the only knobs: whether to take bookings, how long a window is,
+  // how many pickers fit in one, and how far ahead people may book.
+  if (body.bookingEnabled !== undefined) data.bookingEnabled = !!body.bookingEnabled;
+  for (const [key, min, max] of [
+    ["slotMinutes", 15, 480],
+    ["slotCapacity", 1, 500],
+    ["bookingDays", 0, 90],
+  ] as const) {
+    if (body[key] === undefined) continue;
+    const value = clampInt(body[key], min, max);
+    if (value === null) return badRequest(`Invalid ${key}`);
+    data[key] = value;
+  }
 
   if (Object.keys(data).length === 0) return badRequest("Nothing to update");
 

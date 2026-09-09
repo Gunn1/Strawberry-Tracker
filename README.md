@@ -105,6 +105,20 @@ normal case and lands around 33px on a phone; past about twelve, the list view
 beside it is the better tool. Neither view lets you change a row by touching the
 strip: tapping opens a sheet that names the row and needs an explicit save.
 
+**Booking needs no account, and nothing generates the slots.** A reservation is
+a name, an email and a party size; the confirmation email carries a token and
+that token is the only way back into it. The bookable windows are derived from
+the opening schedule staff already keep at `/admin`, so changing the hours
+changes what is on offer with nothing to regenerate — a `Slot` row only exists
+once someone books it. Neon speaks HTTP, so there is no interactive transaction
+to hold a capacity check and an insert together; the booking is written and then
+confirmed against the slot's total, and the later of two simultaneous bookings
+is stood down rather than the morning being quietly overbooked.
+
+**Email goes over Resend's HTTP API, not SMTP.** Cloudflare Workers has no raw
+TCP sockets, so nodemailer cannot work here. See `src/lib/mailer.ts`; with no
+key configured, sending is skipped and the booking still stands.
+
 ## Working on it
 
 ```bash

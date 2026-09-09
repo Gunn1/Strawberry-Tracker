@@ -137,3 +137,73 @@ export interface SalesSummary {
   byCashier: { id: string; name: string; count: number; revenue: number }[];
   byLocation: { name: string; count: number; revenue: number }[];
 }
+
+/* ---------------------------------------------------------------- */
+/* Booking                                                          */
+/* ---------------------------------------------------------------- */
+
+/** One picking window, with the room left in it. */
+export interface BookingWindow {
+  /** Farm-local YYYY-MM-DD. */
+  date: string;
+  startMin: number;
+  endMin: number;
+  capacity: number;
+  booked: number;
+  remaining: number;
+}
+
+export interface BookingDay {
+  date: string;
+  windows: BookingWindow[];
+}
+
+/** What /api/booking/availability returns. */
+export interface Availability {
+  /** False when booking or the season is switched off. */
+  open: boolean;
+  slotMinutes: number;
+  days: BookingDay[];
+}
+
+/** A reservation as its holder sees it, reached by the token in their email. */
+export interface Reservation {
+  token: string;
+  name: string;
+  email: string;
+  partySize: number;
+  cancelledAt: string | null;
+  slot: { date: string; startMin: number; endMin: number };
+}
+
+/** A slot with its guest list, for staff. */
+export interface BookedSlot {
+  date: string;
+  startMin: number;
+  endMin: number;
+  capacity: number;
+  booked: number;
+  reservations: {
+    id: string;
+    name: string;
+    email: string;
+    partySize: number;
+    createdAt: string;
+  }[];
+}
+
+/** Everything /api/status exposes as `config`: the schedule plus booking. */
+export interface StandConfig {
+  seasonActive: boolean;
+  openMin: number;
+  closeMin: number;
+  finishByMin: number;
+  openDays: string;
+  overrideStatus: string;
+  overrideDate: string;
+  statusNote: string;
+  bookingEnabled: boolean;
+  slotMinutes: number;
+  slotCapacity: number;
+  bookingDays: number;
+}

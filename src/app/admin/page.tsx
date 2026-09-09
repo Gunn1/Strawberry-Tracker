@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, errorMessage } from "@/lib/api-client";
 import { farmNow, formatClock, formatFarmLongDate } from "@/lib/format/datetime";
+import { windowsForDay } from "@/lib/booking";
 import {
   effectiveStatus,
   formatOpenDays,
@@ -12,6 +13,7 @@ import {
   type OverrideStatus,
   type StatusSettings,
 } from "@/lib/hours";
+import type { StandConfig } from "@/types/domain";
 
 const EFFECTIVE_LABEL: Record<OpenStatus, string> = {
   open: "Open today",
@@ -42,6 +44,10 @@ interface Draft {
   /** The farm day the override was set for; it stops applying after that. */
   overrideDate: string;
   note: string;
+  bookingEnabled: boolean;
+  slotMinutes: number;
+  slotCapacity: number;
+  bookingDays: number;
 }
 
 const NOTE_LIMIT = 160;
@@ -55,6 +61,10 @@ const BLANK: Draft = {
   override: "",
   overrideDate: "",
   note: "",
+  bookingEnabled: false,
+  slotMinutes: 90,
+  slotCapacity: 20,
+  bookingDays: 21,
 };
 
 function sameDraft(a: Draft, b: Draft): boolean {
@@ -66,6 +76,10 @@ function sameDraft(a: Draft, b: Draft): boolean {
     a.override === b.override &&
     a.overrideDate === b.overrideDate &&
     a.note.trim() === b.note.trim() &&
+    a.bookingEnabled === b.bookingEnabled &&
+    a.slotMinutes === b.slotMinutes &&
+    a.slotCapacity === b.slotCapacity &&
+    a.bookingDays === b.bookingDays &&
     a.days.length === b.days.length &&
     a.days.every((d, i) => d === b.days[i])
   );
@@ -125,7 +139,7 @@ export default function AdminStatusPage() {
     let active = true;
     (async () => {
       try {
-        const { config } = await api.get<{ config: StatusSettings }>("/api/status");
+        const { config } = await api.get<{ config: StandConfig }>("/api/status");
         if (!active) return;
         // An override only counts on the day it was set for; a stale one from
         // yesterday must not silently keep the stand closed.
@@ -139,6 +153,10 @@ export default function AdminStatusPage() {
           override: isToday ? (config.overrideStatus as OverrideStatus) : "",
           overrideDate: isToday ? config.overrideDate : "",
           note: isToday ? (config.statusNote ?? "") : "",
+          bookingEnabled: !!config.bookingEnabled,
+          slotMinutes: config.slotMinutes,
+          slotCapacity: config.slotCapacity,
+          bookingDays: config.bookingDays,
         };
         setSaved(loaded);
         setDraft(loaded);
@@ -202,6 +220,10 @@ export default function AdminStatusPage() {
         openDays: draft.days.join(","),
         overrideStatus: draft.override,
         statusNote: draft.note,
+        bookingEnabled: draft.bookingEnabled,
+        slotMinutes: draft.slotMinutes,
+        slotCapacity: draft.slotCapacity,
+        bookingDays: draft.bookingDays,
       });
       setSaved(draft);
       setToast("Saved — live on the site");
@@ -233,6 +255,9 @@ export default function AdminStatusPage() {
     { key: "closed", label: "Closed today", hint: "Rain, ripening, a day off" },
     { key: "pickedout", label: "Picked out", hint: "Out of berries until the next flush" },
   ];
+
+  // Exactly what the customer-facing grid will offer, from the same function.
+  const bookingWindows = windowsForDay(draft.openMin, draft.closeMin, draft.slotMinutes);
 
   const warnings: string[] = [];
   if (draft.closeMin <= draft.openMin) {
@@ -427,6 +452,80 @@ export default function AdminStatusPage() {
               ))}
             </section>
 
+            {/* Booking rides on the hours above, so it follows them. */}
+            <section className="card">
+              <div className="seasonrow">
+                <div>
+                  <h2>Taking bookings</h2>
+                  <p className="muted">
+                    Customers reserve a picking window at <b>/book</b>. The windows come from the
+                    hours above, so there is nothing separate to keep up to date.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={draft.bookingEnabled}
+                  className={`switch ${draft.bookingEnabled ? "on" : ""}`}
+                  onClick={() => update("bookingEnabled", !draft.bookingEnabled)}
+                >
+                  <span className="track"><span className="knob" /></span>
+                  <span className="slabel">{draft.bookingEnabled ? "On" : "Off"}</span>
+                </button>
+              </div>
+
+              {draft.bookingEnabled && (
+                <>
+                  <div className="times">
+                    <label className="field">
+                      <span className="fieldhead">Window length</span>
+                      <select value={draft.slotMinutes} onChange={(e) => update("slotMinutes", Number(e.target.value))}>
+                        {[30, 45, 60, 90, 120].map((m) => (
+                          <option key={m} value={m}>{m} min</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span className="fieldhead">Pickers per window</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={500}
+                        value={draft.slotCapacity}
+                        onChange={(e) => update("slotCapacity", Number(e.target.value))}
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="fieldhead">Book up to</span>
+                      <select value={draft.bookingDays} onChange={(e) => update("bookingDays", Number(e.target.value))}>
+                        {[7, 14, 21, 30, 60].map((d) => (
+                          <option key={d} value={d}>{d} days ahead</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <p className="derived">
+                    {bookingWindows.length === 0 ? (
+                      <>These hours leave no window long enough to book.</>
+                    ) : (
+                      <>
+                        Each open day offers{" "}
+                        <b>{bookingWindows.length} window{bookingWindows.length === 1 ? "" : "s"}</b>
+                        {": "}
+                        {bookingWindows.map((w) => `${formatClock(w.startMin)}–${formatClock(w.endMin)}`).join(", ")}
+                        {" · up to "}
+                        <b>{bookingWindows.length * draft.slotCapacity} pickers</b> a day.
+                      </>
+                    )}
+                  </p>
+                  {!draft.seasonActive && (
+                    <p className="warn">The season is off, so nothing is bookable yet whatever these say.</p>
+                  )}
+                </>
+              )}
+            </section>
+
             {/* The once-a-year switch, last. */}
             <section className="card">
               <div className="seasonrow">
@@ -529,7 +628,8 @@ export default function AdminStatusPage() {
         .fieldhead { display: flex; align-items: baseline; gap: .5rem; font-family: var(--data); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
         .fieldhead em { font-style: normal; text-transform: none; letter-spacing: 0; font-size: .74rem; color: var(--muted); opacity: .8; }
         .field input { display: block; width: 100%; margin-top: .35rem; font-family: var(--body); font-size: 1rem; padding: .7rem .9rem; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: #fff; color: var(--ink); }
-        .field input:focus { outline: none; border-color: var(--wagon); }
+        .field input:focus, .field select:focus { outline: none; border-color: var(--wagon); }
+        .field select { display: block; width: 100%; margin-top: .35rem; font-family: var(--body); font-size: 1rem; padding: .7rem .9rem; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: #fff; color: var(--ink); cursor: pointer; }
         .hint { display: block; margin-top: .4rem; font-size: .8rem; color: var(--muted); }
         .hint em { font-style: normal; font-family: var(--data); }
 

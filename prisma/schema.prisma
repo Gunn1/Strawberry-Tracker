@@ -13,7 +13,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 enum Role {
   ADMIN // full access, including managing users
   STAFF // till, status, sales — everything except user management
@@ -29,14 +28,14 @@ model User {
   active        Boolean         @default(false) // may sign in (set when invited by an admin)
   accounts      Account[]
   sessions      Session[]
-  sales Sale[]
+  sales         Sale[]
   // Optional for WebAuthn support
   Authenticator Authenticator[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
- 
+
 model Account {
   userId            String
   type              String
@@ -49,33 +48,33 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
- 
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@id([provider, providerAccountId])
 }
- 
+
 model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
- 
+
 model VerificationToken {
   identifier String
   token      String
   expires    DateTime
- 
+
   @@id([identifier, token])
 }
- 
+
 // Optional for WebAuthn support
 model Authenticator {
   credentialID         String  @unique
@@ -86,63 +85,70 @@ model Authenticator {
   credentialDeviceType String
   credentialBackedUp   Boolean
   transports           String?
- 
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@id([userId, credentialID])
 }
 
 // Things the stand sells. Dynamic — add/edit them in the admin.
 model Product {
-  id         String   @id @default(cuid())
+  id         String          @id @default(cuid())
   name       String
-  unit       String   @default("each") // qt, lb, each, …
-  priceCents Int      @default(0)
-  active     Boolean  @default(true)
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
+  unit       String          @default("each") // qt, lb, each, …
+  priceCents Int             @default(0)
+  active     Boolean         @default(true)
+  sortOrder  Int             @default(0)
+  createdAt  DateTime        @default(now())
   sales      Sale[]
   stock      LocationStock[]
 }
 
 // Singleton row of stand prices + today's open status. id is always "default".
 model StandSettings {
-  id             String @id @default("default")
+  id String @id @default("default")
 
   // Customer-facing status is COMPUTED from the schedule below plus an optional
   // same-day override set by staff at /admin (override wins for that day).
-  seasonActive   Boolean @default(false)         // is U-pick season on?
-  openMin        Int     @default(420)           // opens 7:00 a.m. (minutes from midnight, farm-local)
-  closeMin       Int     @default(720)           // closes at noon
-  finishByMin    Int     @default(750)           // finish picking by 12:30 p.m.
+  seasonActive   Boolean @default(false) // is U-pick season on?
+  openMin        Int     @default(420) // opens 7:00 a.m. (minutes from midnight, farm-local)
+  closeMin       Int     @default(720) // closes at noon
+  finishByMin    Int     @default(750) // finish picking by 12:30 p.m.
   openDays       String  @default("1,2,3,4,5,6") // weekday numbers open (0=Sun … 6=Sat)
-  overrideStatus String  @default("")            // "" = follow schedule; else open|closed|pickedout
-  overrideDate   String  @default("")            // YYYY-MM-DD (farm-local) the override applies to
-  statusNote     String  @default("")            // note shown with the override
+  overrideStatus String  @default("") // "" = follow schedule; else open|closed|pickedout
+  overrideDate   String  @default("") // YYYY-MM-DD (farm-local) the override applies to
+  statusNote     String  @default("") // note shown with the override
+
+  // Booking. The bookable windows are DERIVED from the schedule above, so
+  // there is nothing to generate: change the hours and the grid changes.
+  bookingEnabled Boolean @default(false) // take reservations at all?
+  slotMinutes    Int     @default(90) // length of each picking window
+  slotCapacity   Int     @default(20) // default pickers per window
+  bookingDays    Int     @default(21) // how far ahead people may book
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Sale {
-  id             String   @id @default(cuid())
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   productId      String?
   product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   productName    String   @default("") // denormalized name + unit AT TIME OF SALE
   unit           String   @default("each")
   quantity       Int
-  unitPriceCents Int      // price per unit AT TIME OF SALE
-  totalCents     Int      // quantity * unitPriceCents
-  tenderedCents  Int      // cash received
-  changeCents    Int      // tenderedCents - totalCents
+  unitPriceCents Int // price per unit AT TIME OF SALE
+  totalCents     Int // quantity * unitPriceCents
+  tenderedCents  Int // cash received
+  changeCents    Int // tenderedCents - totalCents
 
-  cashierId      String?
-  cashier        User?    @relation(fields: [cashierId], references: [id])
+  cashierId String?
+  cashier   User?   @relation(fields: [cashierId], references: [id])
 
-  location       String?  // where the sale happened (e.g. "The Farm", a market), stored by name
-  groupId        String?  // ties line items of one multi-item transaction together
+  location String? // where the sale happened (e.g. "The Farm", a market), stored by name
+  groupId  String? // ties line items of one multi-item transaction together
 
   @@index([createdAt])
   @@index([cashierId])
@@ -178,8 +184,8 @@ model LocationStock {
 model Slot {
   id       String   @id @default(cuid())
   date     DateTime @db.Date // the picking day
-  startMin Int               // window start, minutes from midnight (480 = 8:00 AM)
-  endMin   Int               // window end, minutes from midnight
+  startMin Int // window start, minutes from midnight (480 = 8:00 AM)
+  endMin   Int // window end, minutes from midnight
   capacity Int      @default(20) // max pickers allowed in the window
 
   reservations Reservation[]
@@ -195,14 +201,20 @@ model Reservation {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  slotId    String
-  slot      Slot     @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  slotId String
+  slot   Slot   @relation(fields: [slotId], references: [id], onDelete: Cascade)
 
   name      String
   email     String
   partySize Int // number of pickers in this booking
 
+  // Booking needs no account, so the confirmation email carries a secret
+  // token and that is the only way back into the reservation.
+  token       String    @unique
+  cancelledAt DateTime? // kept rather than deleted, so the day's history stays honest
+
   @@index([slotId])
+  @@index([email])
 }
 
 // Folks who want a heads-up when strawberry season opens.
@@ -281,4 +293,3 @@ model RowEvent {
 
   @@index([rowId, createdAt])
 }
-
