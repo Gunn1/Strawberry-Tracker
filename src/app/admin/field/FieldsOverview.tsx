@@ -27,7 +27,6 @@ export default function FieldsOverview({
                 <span className="meta">
                   {field.patches.length} patch{field.patches.length === 1 ? "" : "es"} &middot; {rows.length} row
                   {rows.length === 1 ? "" : "s"}
-                  {field.nearLabel ? ` · ${field.nearLabel}` : ""}
                 </span>
               </div>
               <span className="pct" style={{ color: freshColor(fresh) }}>{fresh}%</span>

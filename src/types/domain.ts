@@ -108,19 +108,19 @@ export interface Patch {
   name: string;
   sortOrder: number;
   active: boolean;
+  /** What borders the far end of this patch's rows, e.g. "Treeline". */
+  farLabel: string;
+  /** What borders the near end, where you walk in, e.g. "Road & parking". */
+  nearLabel: string;
   rows: FieldRow[];
 }
 
-/** A named parcel of land holding patches. Labels orient the map. */
+/** A named parcel of land holding patches. */
 export interface Field {
   id: string;
   name: string;
   sortOrder: number;
   active: boolean;
-  /** What borders the far end of the rows, e.g. "Treeline". */
-  farLabel: string;
-  /** What borders the near end, where you walk in, e.g. "Road & parking". */
-  nearLabel: string;
   patches: Patch[];
 }
 

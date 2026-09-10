@@ -6,22 +6,31 @@ import { trimTo, trimToOrNull } from "@/lib/validate";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-// PATCH /api/field/patches/:id -> rename a patch, and/or set one variety across
-// every row in it (admins only).
+// PATCH /api/field/patches/:id -> rename a patch, set the landmarks its map is
+// oriented by, and/or set one variety across every row in it (admins only).
 export async function PATCH(req: Request, ctx: RouteContext) {
   const guard = await requireAdmin();
   if (guard.response) return guard.response;
 
-  const body = await readJson<{ name?: string; variety?: string | null }>(req);
+  const body = await readJson<{
+    name?: string;
+    variety?: string | null;
+    farLabel?: string;
+    nearLabel?: string;
+  }>(req);
   if (!body) return badRequest("Invalid JSON");
 
-  const data: { name?: string } = {};
+  const data: { name?: string; farLabel?: string; nearLabel?: string } = {};
   if (body.name !== undefined) {
     const name = trimTo(body.name, 40);
     if (!name) return badRequest("Name can't be empty.");
     data.name = name;
   }
-  if (body.name === undefined && body.variety === undefined) return badRequest("Nothing to update");
+  if (body.farLabel !== undefined) data.farLabel = trimTo(body.farLabel, 30);
+  if (body.nearLabel !== undefined) data.nearLabel = trimTo(body.nearLabel, 30);
+  if (Object.keys(data).length === 0 && body.variety === undefined) {
+    return badRequest("Nothing to update");
+  }
 
   const prisma = getPrisma();
   const { id } = await ctx.params;

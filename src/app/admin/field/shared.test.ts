@@ -18,11 +18,11 @@ function row(id: string, pickedStart: number, pickedEnd: number, status: RowStat
 }
 
 function patch(id: string, name: string, rows: FieldRow[]): Patch {
-  return { id, fieldId: "f1", name, sortOrder: 0, active: true, rows };
+  return { id, fieldId: "f1", name, sortOrder: 0, active: true, farLabel: "", nearLabel: "", rows };
 }
 
 function field(patches: Patch[]): Field {
-  return { id: "f1", name: "Home field", sortOrder: 0, active: true, farLabel: "", nearLabel: "", patches };
+  return { id: "f1", name: "Home field", sortOrder: 0, active: true, patches };
 }
 
 describe("freshPct", () => {

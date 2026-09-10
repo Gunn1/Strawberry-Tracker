@@ -197,6 +197,25 @@ export default function FieldPage() {
           onSelect: () => run(() => api.post(`/api/field/patches/${patch.id}/move`, { direction: "down" }), "Patch moved"),
         },
         {
+          label: "Set the landmarks",
+          onSelect: () =>
+            setAsk({
+              title: `Landmarks for ${patch.name}`,
+              message:
+                "What borders each end of this patch's rows. It is how someone standing at it works out which way the map is facing, so name things they can see.",
+              input: {
+                label: "Near end (where you walk in)",
+                defaultValue: patch.nearLabel,
+                placeholder: "Road & parking",
+                allowEmpty: true,
+              },
+              input2: { label: "Far end", defaultValue: patch.farLabel, placeholder: "Treeline" },
+              confirmLabel: "Save landmarks",
+              onConfirm: (nearLabel, farLabel) =>
+                run(() => api.patch(`/api/field/patches/${patch.id}`, { nearLabel, farLabel }), "Landmarks saved"),
+            }),
+        },
+        {
           label: "Rename patch",
           onSelect: () =>
             setAsk({
@@ -245,19 +264,6 @@ export default function FieldPage() {
               input: { label: "Patch name", placeholder: "Patch C" },
               confirmLabel: "Add patch",
               onConfirm: (name) => run(() => api.post("/api/field/patches", { fieldId: field.id, name }), "Patch added"),
-            }),
-        },
-        {
-          label: "Set the landmarks",
-          onSelect: () =>
-            setAsk({
-              title: "Landmarks",
-              message: "What borders each end of the rows. These are how someone standing in the field works out which way the map is facing.",
-              input: { label: "Near end (where you walk in)", defaultValue: field.nearLabel, placeholder: "Road & parking", allowEmpty: true },
-              input2: { label: "Far end", defaultValue: field.farLabel, placeholder: "Treeline" },
-              confirmLabel: "Save landmarks",
-              onConfirm: (nearLabel, farLabel) =>
-                run(() => api.patch(`/api/fields/${field.id}`, { nearLabel, farLabel }), "Landmarks saved"),
             }),
         },
         {
@@ -375,8 +381,6 @@ export default function FieldPage() {
                   <PatchMap
                     key={patch.id}
                     patch={patch}
-                    farLabel={selected.farLabel}
-                    nearLabel={selected.nearLabel}
                     bestRowId={best?.row.id ?? null}
                     isAdmin={isAdmin}
                     onPickRow={(row) => setRecordId(row.id)}

@@ -35,16 +35,12 @@ function EdgeLabel({ text, thick }: { text: string; thick?: boolean }) {
 
 export default function PatchMap({
   patch,
-  farLabel,
-  nearLabel,
   bestRowId,
   isAdmin,
   onPickRow,
   onPatchMenu,
 }: {
   patch: Patch;
-  farLabel: string;
-  nearLabel: string;
   bestRowId: string | null;
   isAdmin: boolean;
   onPickRow: (row: FieldRow) => void;
@@ -80,7 +76,7 @@ export default function PatchMap({
         <p className="norows">No rows yet.</p>
       ) : (
         <>
-          <EdgeLabel text={farLabel || "Far end"} />
+          <EdgeLabel text={patch.farLabel || "Far end"} />
 
           {/* The track holds one column per row. Columns share the width until
               they would drop under 30px, at which point the map scrolls rather
@@ -115,7 +111,7 @@ export default function PatchMap({
             </div>
           </div>
 
-          <EdgeLabel text={nearLabel || "Near end"} thick />
+          <EdgeLabel text={patch.nearLabel || "Near end"} thick />
         </>
       )}
 
