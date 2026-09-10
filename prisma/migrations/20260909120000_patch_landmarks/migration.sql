@@ -9,7 +9,6 @@ SET "farLabel" = f."farLabel", "nearLabel" = f."nearLabel"
 FROM "Field" f
 WHERE f.id = p."fieldId";
 
--- "Field"."farLabel" and "nearLabel" are deliberately left in place. They are
--- no longer in the schema, and Prisma never selects a column it does not know
--- about, but the cloudflare branch still reads them; dropping now would break
--- that branch against this same database. Drop them once this work is merged.
+-- "Field"."farLabel" and "nearLabel" are left in place here on purpose: the
+-- cloudflare branch was still reading them against this same database.
+-- 20260909200000_drop_field_landmarks removes them once that work merged.
