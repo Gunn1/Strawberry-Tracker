@@ -1,4 +1,5 @@
 import { badRequest, notFound, ok, serverError } from "@/lib/api/http";
+import { notifyStaffOfCancellation } from "@/lib/booking-mail";
 import { getPrisma } from "@/lib/db/prisma";
 import { farmNow, toCalendarDate } from "@/lib/format/datetime";
 
@@ -46,7 +47,14 @@ export async function DELETE(_req: Request, ctx: RouteContext) {
     const prisma = getPrisma();
     const reservation = await prisma.reservation.findUnique({
       where: { token },
-      select: { id: true, cancelledAt: true, slot: { select: { date: true, startMin: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        partySize: true,
+        cancelledAt: true,
+        slot: { select: { date: true, startMin: true, endMin: true } },
+      },
     });
     if (!reservation) return notFound("Reservation not found");
     if (reservation.cancelledAt) return ok({ ok: true, alreadyCancelled: true });
@@ -60,6 +68,18 @@ export async function DELETE(_req: Request, ctx: RouteContext) {
     }
 
     await prisma.reservation.update({ where: { id: reservation.id }, data: { cancelledAt: new Date() } });
+
+    // The farm wants to know a place came back, but not at the cost of the
+    // cancellation appearing to fail.
+    await notifyStaffOfCancellation({
+      name: reservation.name,
+      email: reservation.email,
+      partySize: reservation.partySize,
+      date: slotDate,
+      startMin: reservation.slot.startMin,
+      endMin: reservation.slot.endMin,
+      token,
+    });
     return ok({ ok: true });
   } catch {
     return serverError("Couldn't cancel that booking.");

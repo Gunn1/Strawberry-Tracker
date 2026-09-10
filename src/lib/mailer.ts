@@ -9,7 +9,7 @@
 const API_URL = "https://api.resend.com/emails";
 
 export interface Mail {
-  to: string;
+  to: string | string[];
   subject: string;
   /** Plain text; this farm's mail does not need to be a web page. */
   text: string;
@@ -20,6 +20,9 @@ export interface Mail {
  * customer just made, which is already saved.
  */
 export async function sendMail(mail: Mail): Promise<boolean> {
+  const recipients = Array.isArray(mail.to) ? mail.to : [mail.to];
+  if (recipients.length === 0) return false;
+
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (!apiKey || !from) {
@@ -31,7 +34,12 @@ export async function sendMail(mail: Mail): Promise<boolean> {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [mail.to], subject: mail.subject, text: mail.text }),
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(mail.to) ? mail.to : [mail.to],
+        subject: mail.subject,
+        text: mail.text,
+      }),
     });
     if (!res.ok) {
       console.error(`Resend failed (${res.status}): ${await res.text().catch(() => "")}`);

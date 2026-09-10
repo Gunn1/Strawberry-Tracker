@@ -2,17 +2,17 @@ import { badRequest, created, readJson, serverError } from "@/lib/api/http";
 import { bookableWindows, bookingOpen, withAvailability } from "@/lib/booking";
 import { bookingSettings, storedSlots } from "@/lib/db/booking-query";
 import { getPrisma } from "@/lib/db/prisma";
-import { formatCalendarDate, formatClock, fromCalendarDate } from "@/lib/format/datetime";
-import { sendMail } from "@/lib/mailer";
+import {
+  manageUrl,
+  notifyStaffOfBooking,
+  sendBookingConfirmation,
+  type BookingDetails,
+} from "@/lib/booking-mail";
+import { fromCalendarDate } from "@/lib/format/datetime";
 import { isEmail, parseQuantity, trimTo } from "@/lib/validate";
 
 /** Nobody books a coach party at a u-pick stand; this catches typos. */
 const MAX_PARTY = 30;
-
-function manageUrl(token: string): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "";
-  return `${base.replace(/\/$/, "")}/booking/${token}`;
-}
 
 // POST /api/booking -> reserve a picking window. Public and account-free: the
 // confirmation email carries the only way back into the reservation.
@@ -100,27 +100,19 @@ export async function POST(req: Request) {
       return badRequest("That time filled up while you were booking. Please choose another.");
     }
 
-    const when = `${formatCalendarDate(date)}, ${formatClock(startMin)} – ${formatClock(window.endMin)}`;
-    await sendMail({
-      to: email,
-      subject: `Your picking time at Carter's Red Wagon Farm — ${formatCalendarDate(date)}`,
-      text: [
-        `Hi ${name},`,
-        ``,
-        `You're booked in for u-pick strawberries:`,
-        ``,
-        `  ${when}`,
-        `  ${partySize} picker${partySize === 1 ? "" : "s"}`,
-        ``,
-        `Change or cancel: ${manageUrl(token)}`,
-        ``,
-        `We may close for weather, ripening, or once we're picked out, so check`,
-        `today's status on the website before you set off.`,
-        ``,
-        `Carter's Red Wagon Farm, Park Rapids MN`,
-        `(218) 732-4979`,
-      ].join("\n"),
-    });
+    const details: BookingDetails = {
+      name,
+      email,
+      partySize,
+      date,
+      startMin,
+      endMin: window.endMin,
+      token,
+    };
+    // Neither message may sink the booking that is already saved, and the
+    // customer's confirmation matters more than the farm's copy.
+    await sendBookingConfirmation(details);
+    await notifyStaffOfBooking(details);
 
     return created({
       token,
