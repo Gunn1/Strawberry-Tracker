@@ -36,6 +36,7 @@ export default function AdminShell({
         { href: "/admin/transactions", label: "Transactions" },
         { href: "/admin/products", label: "Products" },
         { href: "/admin/locations", label: "Locations" },
+        { href: "/admin/subscribers", label: "Mailing list" },
         { href: "/admin/users", label: "Users" },
       ]
     : [];

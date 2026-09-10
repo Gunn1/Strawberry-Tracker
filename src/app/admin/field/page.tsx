@@ -206,7 +206,10 @@ export default function FieldPage() {
     }
   }
 
-  async function changeRow(rowId: string, body: { status?: RowStatus; variety?: string; note?: string }) {
+  async function changeRow(
+    rowId: string,
+    body: { status?: RowStatus; variety?: string; note?: string; label?: string },
+  ) {
     if (saving) return;
     setSaving(true);
     setError(null);

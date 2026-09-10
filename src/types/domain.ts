@@ -176,13 +176,15 @@ export interface Reservation {
   slot: { date: string; startMin: number; endMin: number };
 }
 
-/** A slot with its guest list, for staff. */
+/** A window with its guest list, for staff. */
 export interface BookedSlot {
   date: string;
   startMin: number;
   endMin: number;
   capacity: number;
   booked: number;
+  /** True when this window has a capacity of its own, not the default. */
+  overridden: boolean;
   reservations: {
     id: string;
     name: string;
@@ -190,6 +192,13 @@ export interface BookedSlot {
     partySize: number;
     createdAt: string;
   }[];
+}
+
+/** What the staff bookings screen loads. */
+export interface BookingBoard {
+  open: boolean;
+  defaultCapacity: number;
+  slots: BookedSlot[];
 }
 
 /** Everything /api/status exposes as `config`: the schedule plus booking. */
@@ -206,4 +215,11 @@ export interface StandConfig {
   slotMinutes: number;
   slotCapacity: number;
   bookingDays: number;
+}
+
+/** Someone waiting to hear that picking has opened. */
+export interface Subscriber {
+  id: string;
+  email: string;
+  createdAt: string;
 }

@@ -1,7 +1,25 @@
-import { badRequest, created, readJson, serverError } from "@/lib/api/http";
+import { requireAdmin } from "@/lib/api/guard";
+import { badRequest, created, ok, readJson, serverError } from "@/lib/api/http";
 import { getPrisma } from "@/lib/db/prisma";
 import { addToMailingList } from "@/lib/mailing-list";
 import { isEmail, trimTo } from "@/lib/validate";
+
+// GET /api/subscribers -> the season-updates list (admins only). These are
+// customer email addresses, so this is not staff-wide.
+export async function GET() {
+  const guard = await requireAdmin();
+  if (guard.response) return guard.response;
+
+  try {
+    const subscribers = await getPrisma().subscriber.findMany({
+      orderBy: { createdAt: "desc" },
+      select: { id: true, email: true, createdAt: true },
+    });
+    return ok(subscribers);
+  } catch {
+    return serverError("Couldn't load the mailing list.");
+  }
+}
 
 // POST /api/subscribers -> add an email to the season-updates list.
 // Public, and idempotent: signing up twice with the same address is a no-op.

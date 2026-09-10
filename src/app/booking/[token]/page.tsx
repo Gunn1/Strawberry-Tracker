@@ -7,7 +7,7 @@ import { use, useEffect, useState } from "react";
 
 import { api, errorMessage } from "@/lib/api-client";
 import { formatCalendarDate, formatClock } from "@/lib/format/datetime";
-import type { Reservation } from "@/types/domain";
+import type { Availability, BookingWindow, Reservation } from "@/types/domain";
 
 /**
  * The page a customer reaches from the link in their confirmation email. The
@@ -22,6 +22,11 @@ export default function ManageBookingPage({ params }: { params: Promise<{ token:
   const [notFound, setNotFound] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [availability, setAvailability] = useState<Availability | null>(null);
+  const [pickDate, setPickDate] = useState("");
+  const [pickStart, setPickStart] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -54,7 +59,53 @@ export default function ManageBookingPage({ params }: { params: Promise<{ token:
     }
   }
 
+  async function startMove() {
+    setError(null);
+    setMoving(true);
+    if (availability) return;
+    try {
+      const data = await api.get<Availability>("/api/booking/availability");
+      setAvailability(data);
+      setPickDate(data.days[0]?.date ?? "");
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't load the other times."));
+      setMoving(false);
+    }
+  }
+
+  async function move() {
+    if (pickStart === null || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await api.patch<{ date: string; startMin: number; endMin: number }>(
+        `/api/booking/${token}`,
+        { date: pickDate, startMin: pickStart },
+      );
+      setReservation((r) =>
+        r ? { ...r, slot: { date: res.date, startMin: res.startMin, endMin: res.endMin } } : r,
+      );
+      setMoving(false);
+      setPickStart(null);
+      setAvailability(null);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't move that booking."));
+      // The grid may have moved under us, so show what is true now.
+      try {
+        setAvailability(await api.get<Availability>("/api/booking/availability"));
+        setPickStart(null);
+      } catch {
+        // keep the stale grid rather than emptying the page
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const cancelled = !!reservation?.cancelledAt;
+  const day = availability?.days.find((d) => d.date === pickDate) ?? null;
+  const chosen: BookingWindow | null = day?.windows.find((w) => w.startMin === pickStart) ?? null;
+  const roomFor = (w: BookingWindow) => !reservation || w.remaining >= reservation.partySize;
 
   return (
     <div className="page">
@@ -111,6 +162,66 @@ export default function ManageBookingPage({ params }: { params: Promise<{ token:
                 </p>
                 <Link className="cta" href="/book">Book another time</Link>
               </>
+            ) : moving ? (
+              <div className="mover">
+                <h2>Pick another time</h2>
+                {!availability ? (
+                  <p className="lead">Loading…</p>
+                ) : availability.days.length === 0 ? (
+                  <p className="lead">There are no other times available at the moment.</p>
+                ) : (
+                  <>
+                    <div className="days">
+                      {availability.days.map((d) => (
+                        <button
+                          type="button"
+                          key={d.date}
+                          className={d.date === pickDate ? "day on" : "day"}
+                          onClick={() => {
+                            setPickDate(d.date);
+                            setPickStart(null);
+                          }}
+                        >
+                          {formatCalendarDate(d.date)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="slots">
+                      {day?.windows.map((w) => {
+                        const fits = roomFor(w);
+                        const now =
+                          w.date === reservation.slot.date && w.startMin === reservation.slot.startMin;
+                        return (
+                          <button
+                            type="button"
+                            key={w.startMin}
+                            className={`slot${pickStart === w.startMin ? " on" : ""}${fits && !now ? "" : " out"}`}
+                            disabled={!fits || now}
+                            onClick={() => setPickStart(w.startMin)}
+                          >
+                            <b>{formatClock(w.startMin)} &ndash; {formatClock(w.endMin)}</b>
+                            <span>
+                              {now
+                                ? "your time now"
+                                : fits
+                                  ? `room for ${w.remaining}`
+                                  : `only ${w.remaining} left`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                <div className="confirmrow">
+                  <button className="keep" onClick={() => { setMoving(false); setPickStart(null); }} disabled={saving}>
+                    Never mind
+                  </button>
+                  <button className="drop" onClick={move} disabled={saving || !chosen}>
+                    {saving ? "Moving…" : chosen ? `Move to ${formatClock(chosen.startMin)}` : "Choose a time"}
+                  </button>
+                </div>
+              </div>
             ) : confirming ? (
               <div className="confirm">
                 <p>Cancel this booking? Your places go back on sale straight away.</p>
@@ -126,9 +237,12 @@ export default function ManageBookingPage({ params }: { params: Promise<{ token:
             ) : (
               <>
                 <p className="lead">
-                  Need a different time? Cancel this one and book again &mdash; that way your places
-                  go back for someone else.
+                  Need a different morning? Move it rather than cancelling, and your places are
+                  held while you choose.
                 </p>
+                <button className="cta wide" onClick={startMove}>
+                  Change my time
+                </button>
                 <button className="drop wide" onClick={() => setConfirming(true)}>
                   Cancel this booking
                 </button>
@@ -184,6 +298,33 @@ export default function ManageBookingPage({ params }: { params: Promise<{ token:
           color: #fff; text-decoration: none; padding: 0.85em 1.4em; border-radius: var(--r-pill);
         }
         .cta:hover { background: var(--wagon-deep); color: #fff; }
+        .cta.wide {
+          display: block; width: 100%; margin-top: 18px; min-height: 52px; font-family: var(--body);
+          font-weight: 700; font-size: 0.98rem; color: #fff; background: var(--wagon);
+          border: none; border-radius: var(--r-pill); cursor: pointer; text-align: center;
+        }
+        .cta.wide:hover { background: var(--wagon-deep); }
+
+        .mover { margin-top: 22px; }
+        .mover h2 { font-family: var(--display); font-weight: 600; font-size: 1.2rem; margin: 0 0 12px; }
+        .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+        .days .day {
+          flex: none; min-height: 44px; padding: 0 14px; font-family: var(--body); font-weight: 700;
+          font-size: 0.88rem; color: var(--ink); background: #fff; border: 1.5px solid var(--line);
+          border-radius: var(--r-pill); cursor: pointer; white-space: nowrap;
+        }
+        .days .day.on { border-color: var(--wagon); color: var(--wagon-deep); box-shadow: inset 0 0 0 1px var(--wagon); }
+        .slots { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .slots .slot {
+          min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 12px 16px; background: #fff; border: 1.5px solid var(--line); border-radius: 14px;
+          cursor: pointer; text-align: left; font-family: var(--body);
+        }
+        .slots .slot b { font-size: 0.98rem; }
+        .slots .slot span { font-family: var(--data); font-size: 0.72rem; color: var(--muted); }
+        .slots .slot.on { border-color: var(--wagon); box-shadow: inset 0 0 0 1.5px var(--wagon); }
+        .slots .slot.out { opacity: 0.5; cursor: not-allowed; background: var(--paper-2); }
+
         .warn { color: var(--muted); font-size: 0.86rem; margin-top: 30px; line-height: 1.6; }
       `}</style>
     </div>

@@ -183,6 +183,20 @@ export default function RowSettings({
         </div>
 
         <label className="field">
+          <span className="glabel">Name</span>
+          <input
+            defaultValue={row.label}
+            maxLength={30}
+            placeholder="Row 4"
+            onBlur={(e) => {
+              const value = e.target.value.trim();
+              if (value && value !== row.label) onChange({ label: value });
+            }}
+          />
+          <small>What the map prints under this row.</small>
+        </label>
+
+        <label className="field">
           <span className="glabel">Variety</span>
           <input
             defaultValue={row.variety ?? ""}
@@ -264,6 +278,7 @@ export default function RowSettings({
           border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
         }
         .field input:focus { outline: none; border-color: var(--wagon); }
+        .field small { display: block; margin-top: 7px; font-size: 0.78rem; color: var(--muted); line-height: 1.45; }
 
         .histcard { margin-top: 24px; background: #fff; border: 1px solid #cdb892; border-radius: 20px; padding: 16px; }
         .delete {

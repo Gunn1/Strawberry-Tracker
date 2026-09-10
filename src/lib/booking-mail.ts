@@ -84,6 +84,49 @@ export async function notifyStaffOfBooking(b: BookingDetails): Promise<void> {
   });
 }
 
+/** To the customer, when they move their own booking. */
+export async function sendBookingChange(b: BookingDetails, wasWhen: string): Promise<void> {
+  await sendMail({
+    to: b.email,
+    subject: `Your picking time has moved — ${formatCalendarDate(b.date)}`,
+    text: [
+      `Hi ${b.name},`,
+      ``,
+      `Your picking time has been changed. It was:`,
+      ``,
+      `  ${wasWhen}`,
+      ``,
+      `It is now:`,
+      ``,
+      `  ${when(b)}`,
+      `  ${pickers(b.partySize)}`,
+      ``,
+      `Change or cancel: ${manageUrl(b.token)}`,
+      ``,
+      `${FARM}, Park Rapids MN`,
+      PHONE,
+    ].join("\n"),
+  });
+}
+
+/** To the farm, when a customer moves theirs. */
+export async function notifyStaffOfChange(b: BookingDetails, wasWhen: string): Promise<void> {
+  await sendMail({
+    to: staffRecipients(),
+    subject: `Booking moved — ${formatCalendarDate(b.date)}, ${pickers(b.partySize)}`,
+    text: [
+      `${b.name} moved their picking time.`,
+      ``,
+      `  was ${wasWhen}`,
+      `  now ${when(b)}`,
+      `  ${pickers(b.partySize)}`,
+      `  ${b.email}`,
+      ``,
+      `Everyone booked in: ${siteUrl()}/admin/bookings`,
+    ].join("\n"),
+  });
+}
+
 /** To the farm, when a customer cancels themselves. */
 export async function notifyStaffOfCancellation(b: BookingDetails): Promise<void> {
   await sendMail({

@@ -123,6 +123,16 @@ to hold a capacity check and an insert together; the booking is written and then
 confirmed against the slot's total, and the later of two simultaneous bookings
 is stood down rather than the morning being quietly overbooked.
 
+**A booking is moved, not cancelled and rebooked.** Rebooking risked losing the
+place in between, which is exactly why someone hesitates to change a time. The
+move re-derives the grid, checks the new window has room for the whole party,
+and only then reassigns the reservation.
+
+**Capacity is per window where it needs to be.** The default from `/admin`
+applies everywhere until a window is given its own, which is what a `Slot` row
+is for. The staff screen lists every upcoming window, not just booked ones,
+since otherwise a quiet morning could never be sized before it filled.
+
 **Email goes over Resend's HTTP API, not SMTP.** Cloudflare Workers has no raw
 TCP sockets, so nodemailer cannot work here. See `src/lib/mailer.ts`; with no
 key configured, sending is skipped and the booking still stands.
