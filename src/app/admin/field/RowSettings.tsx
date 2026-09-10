@@ -6,6 +6,7 @@ import { api } from "@/lib/api-client";
 import { formatDate, formatTime } from "@/lib/format/datetime";
 import { ROW_STATUSES, type FieldRow, type RowEvent, type RowStatus } from "@/types/domain";
 import { STATUS_META, freshPct } from "./shared";
+import { isWide } from "./viewport";
 
 /** A row's recorded changes, drawn against real elapsed time. */
 function History({ rowId }: { rowId: string }) {
@@ -115,6 +116,8 @@ export default function RowSettings({
   onMove: (direction: "up" | "down") => void;
   onDelete: () => void;
 }) {
+  const [centred] = useState(isWide);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -122,8 +125,8 @@ export default function RowSettings({
   }, [onClose]);
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay" style={centred ? { alignItems: "center" } : undefined} onClick={onClose}>
+      <div className={centred ? "panel dialog" : "panel"} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="head">
           <button className="back" onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
@@ -203,6 +206,11 @@ export default function RowSettings({
         <button className="delete" onClick={onDelete}>Delete {row.label}</button>
 
         <style jsx>{`
+
+          .sheet.dialog, .panel.dialog {
+            border-radius: 22px; margin: 0 18px; max-height: 88vh;
+            box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45);
+          }
           .overlay { position: fixed; inset: 0; z-index: 60; background: rgba(39,31,23,.42); display: flex; align-items: flex-end; justify-content: center; }
           .panel {
             background: var(--paper); width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto;

@@ -2,27 +2,56 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 
-/**
- * Below this width a sheet rises from the bottom, which is where a thumb is.
- * Above it that would put the menu miles from the button that opened it, so it
- * hangs off the button instead.
- */
-const ANCHORED_FROM = 700;
+import { isWide } from "./viewport";
 
-function isWide(): boolean {
-  return typeof window !== "undefined" && window.innerWidth >= ANCHORED_FROM;
+/**
+ * Place a popover by its button, always inside the viewport.
+ *
+ * It goes below when there is room and above when there is more room there,
+ * but either way it is positioned from the top and given a height cap, so a
+ * menu taller than the space it has scrolls rather than running off the edge.
+ * Anchoring from the bottom is what pushed a menu near the top of a short
+ * window off the screen entirely.
+ */
+/** The least room a popover needs before it is worth hanging off a button. */
+const MIN_POPOVER_SPACE = 260;
+
+/** How much vertical room a button has on its roomier side. */
+function roomAround(anchor: DOMRect): number {
+  return Math.max(window.innerHeight - anchor.bottom, anchor.top) - 16;
 }
 
-/** Place a popover under its button, kept inside the viewport. */
 function popoverStyle(anchor: DOMRect, itemCount: number): CSSProperties {
   const width = 264;
   const gap = 8;
-  const estimated = 92 + itemCount * 60;
-  const left = Math.min(Math.max(gap, anchor.right - width), window.innerWidth - width - gap);
-  const belowFits = anchor.bottom + gap + estimated <= window.innerHeight;
-  return belowFits
-    ? { position: "fixed", top: anchor.bottom + gap, left, width }
-    : { position: "fixed", bottom: window.innerHeight - anchor.top + gap, left, width };
+  const minHeight = 160;
+  const wanted = 92 + itemCount * 60;
+
+  const left = Math.min(
+    Math.max(gap, anchor.right - width),
+    Math.max(gap, window.innerWidth - width - gap),
+  );
+  const below = window.innerHeight - anchor.bottom - gap * 2;
+  const above = anchor.top - gap * 2;
+
+  if (wanted <= below || below >= above) {
+    return {
+      position: "fixed",
+      top: anchor.bottom + gap,
+      left,
+      width,
+      maxHeight: Math.max(minHeight, below),
+    };
+  }
+
+  const height = Math.min(wanted, Math.max(minHeight, above));
+  return {
+    position: "fixed",
+    top: Math.max(gap, anchor.top - gap - height),
+    left,
+    width,
+    maxHeight: Math.max(minHeight, above),
+  };
 }
 
 /** Shared chrome for the small sheets that slide up from the bottom. */
@@ -62,7 +91,12 @@ export function MenuSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const [anchored] = useState(() => !!anchor && isWide());
+  // A popover only earns its place when there is somewhere to put it. On a
+  // short window it would be a cramped scroller jammed against an edge, and
+  // the bottom sheet handles that far better.
+  const [anchored] = useState(
+    () => !!anchor && isWide() && roomAround(anchor) >= MIN_POPOVER_SPACE,
+  );
   const style = anchored && anchor ? popoverStyle(anchor, actions.length) : undefined;
 
   return (

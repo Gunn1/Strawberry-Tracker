@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import type { FieldRow } from "@/types/domain";
 import { STATUS_META, STEP, STRAW, freshPct } from "./shared";
+import { isWide } from "./viewport";
 
 function clamp(value: number, max: number): number {
   return Math.max(0, Math.min(max, value));
@@ -36,6 +37,8 @@ export default function RecordSheet({
   const [start, setStart] = useState(row.pickedStart);
   const [end, setEnd] = useState(row.pickedEnd);
 
+  const [centred] = useState(isWide);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
     window.addEventListener("keydown", onKey);
@@ -52,8 +55,8 @@ export default function RecordSheet({
   const dirty = start !== row.pickedStart || end !== row.pickedEnd;
 
   return (
-    <div className="overlay" onClick={onCancel}>
-      <div className="sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay" style={centred ? { alignItems: "center" } : undefined} onClick={onCancel}>
+      <div className={centred ? "sheet dialog" : "sheet"} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <span className="grab" />
 
         <div className="head">
@@ -137,6 +140,11 @@ export default function RecordSheet({
         <p className="hint">Nothing is recorded until you save. Now {freshPct({ pickedStart: start, pickedEnd: end })}% fresh.</p>
 
         <style jsx>{`
+
+          .sheet.dialog, .panel.dialog {
+            border-radius: 22px; margin: 0 18px; max-height: 88vh;
+            box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45);
+          }
           .overlay {
             position: fixed; inset: 0; z-index: 60; background: rgba(39, 31, 23, 0.42);
             display: flex; align-items: flex-end; justify-content: center;
