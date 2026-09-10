@@ -66,7 +66,11 @@ export function MenuSheet({
   const style = anchored && anchor ? popoverStyle(anchor, actions.length) : undefined;
 
   return (
-    <div className={anchored ? "overlay bare" : "overlay"} onClick={onClose}>
+    <div
+      className="overlay"
+      style={anchored ? { background: "transparent", display: "block" } : undefined}
+      onClick={onClose}
+    >
       <div
         className={anchored ? "sheet popover" : "sheet"}
         style={style}
@@ -92,8 +96,9 @@ export function MenuSheet({
         {!anchored && <button className="close" onClick={onClose}>Cancel</button>}
         <style jsx>{`
           ${SHEET_CSS}
-          /* Anchored: a plain popover by the button, no dimming and no rise. */
-          .overlay.bare { background: transparent; display: block; }
+          /* Anchored: a plain popover by the button. The overlay's own
+             dimming and flex layout are switched off inline, since it still
+             has to cover the screen to catch the click that closes this. */
           .sheet.popover {
             max-width: none; border-radius: 16px; padding: 14px;
             border: 1px solid var(--line);
@@ -156,7 +161,7 @@ export function AskSheet({ config, onClose }: { config: AskConfig; onClose: () =
   }
 
   return (
-    <div className={centred ? "overlay centred" : "overlay"} onClick={onClose}>
+    <div className="overlay" style={centred ? { alignItems: "center" } : undefined} onClick={onClose}>
       <form className={centred ? "sheet dialog" : "sheet"} onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h3 className="title">{config.title}</h3>
         {config.message && <p className="message">{config.message}</p>}
@@ -188,7 +193,6 @@ export function AskSheet({ config, onClose }: { config: AskConfig; onClose: () =
 
         <style jsx>{`
           ${SHEET_CSS}
-          .overlay.centred { align-items: center; }
           .sheet.dialog { border-radius: 20px; margin: 0 18px; box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45); }
           .field { display: block; margin-top: 16px; }
           .field span { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
