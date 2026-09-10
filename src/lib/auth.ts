@@ -1,9 +1,11 @@
 import type { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import AzureADProvider from "next-auth/providers/azure-ad";
+import type { EmailConfig } from "next-auth/providers/email";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getPrisma } from "@/lib/db/prisma";
+import { sendMail } from "@/lib/mailer";
 
 // NextAuth holds one adapter for the isolate's lifetime, but on Workers a DB
 // client can't be reused across requests. This proxy hands the adapter a fresh
@@ -22,11 +24,62 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
+/**
+ * Whether an address may sign in at all. Used before sending a link as well as
+ * when one is used, so the farm cannot be turned into a way of mailing
+ * arbitrary strangers.
+ */
+async function mayEnter(email: string): Promise<boolean> {
+  if (ADMIN_EMAILS.includes(email)) return true;
+  if (ADMIN_EMAILS.length === 0) return true; // first-run bootstrap
+  const user = await getPrisma().user.findUnique({ where: { email }, select: { active: true } });
+  return !!user?.active;
+}
+
+/**
+ * A link by email, for staff with neither a Google nor a Microsoft account.
+ *
+ * Written out rather than built with next-auth's EmailProvider, because that
+ * module requires nodemailer the moment it loads, even when the sending is
+ * done here. Nodemailer needs raw TCP sockets, which Cloudflare Workers does
+ * not have, so it could never run anyway.
+ */
+const emailLink: EmailConfig = {
+  id: "email",
+  type: "email",
+  name: "Email",
+  from: process.env.EMAIL_FROM ?? "",
+  maxAge: 15 * 60, // a link is good for fifteen minutes
+  server: "", // unused; sendVerificationRequest does the sending
+  options: {},
+  async sendVerificationRequest({ identifier, url }) {
+    const email = identifier.toLowerCase();
+    // Checked before sending, not only when the link is used. Without this the
+    // farm would be a way of mailing a link to any address anyone typed.
+    if (!(await mayEnter(email))) {
+      console.warn(`Sign-in link requested for an address that is not staff: ${email}`);
+      return;
+    }
+    await sendMail({
+      to: identifier,
+      subject: "Your sign-in link for Red Wagon Farm",
+      text: [
+        `Use this link to sign in to the farm's admin:`,
+        ``,
+        url,
+        ``,
+        `It works once and lasts fifteen minutes.`,
+        `If you did not ask for it, nothing has happened and you can ignore this.`,
+      ].join("\n"),
+    });
+  },
+};
+
 // Shared NextAuth (v4) config. Used by the [...nextauth] route handler and by
 // getServerSession() inside the API routes.
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prismaProxy),
-  pages: { signIn: "/login" },
+  pages: { signIn: "/login", verifyRequest: "/login?sent=1" },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -40,6 +93,7 @@ export const authOptions: AuthOptions = {
       tenantId: process.env.AZURE_AD_TENANT_ID ?? "common",
       allowDangerousEmailAccountLinking: true,
     }),
+    emailLink,
   ],
   callbacks: {
     // Decide who may sign in, and keep admin roles in sync with ADMIN_EMAILS.

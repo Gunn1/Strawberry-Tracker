@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
 const ERRORS: Record<string, string> = {
+  Verification: "That link has expired or was already used. Ask for a new one.",
+  EmailSignin: "Couldn't send that link. Please try again.",
   AccessDenied: "That account isn't on the staff list. Ask an admin to add you.",
   OAuthAccountNotLinked: "That email already signed in with the other provider — use that one.",
   Configuration: "Sign-in isn't fully set up yet. Please try again later.",
@@ -17,7 +19,19 @@ function LoginInner() {
   const callbackUrl = params.get("callbackUrl") || "/admin";
   const error = params.get("error");
 
+  const sent = params.get("sent") === "1";
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+
   const go = (provider: "google" | "azure-ad") => signIn(provider, { callbackUrl });
+
+  async function emailLink(e: React.FormEvent) {
+    e.preventDefault();
+    if (sending || !email.trim()) return;
+    setSending(true);
+    await signIn("email", { email: email.trim(), callbackUrl });
+    setSending(false);
+  }
 
   return (
     <main className="wrap">
@@ -28,6 +42,13 @@ function LoginInner() {
         <p className="sub">Access the farm&apos;s admin &amp; till</p>
 
         {error && <p className="err">{ERRORS[error] || "Couldn't sign you in. Please try again."}</p>}
+
+        {sent && (
+          <p className="sent">
+            Check your inbox. If that address is on the staff list, a sign-in link is on its way.
+            It works once and lasts fifteen minutes.
+          </p>
+        )}
 
         <div className="buttons">
           <button type="button" className="oauth" onClick={() => go("google")}>
@@ -51,6 +72,24 @@ function LoginInner() {
           </button>
         </div>
 
+        <div className="or"><span>or</span></div>
+
+        <form className="byemail" onSubmit={emailLink}>
+          <label htmlFor="staff-email">Sign in with a link by email</label>
+          <input
+            id="staff-email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button type="submit" disabled={sending || !email.trim()}>
+            {sending ? "Sending…" : "Email me a link"}
+          </button>
+        </form>
+
         <Link className="back" href="/">← Back to the website</Link>
       </div>
 
@@ -64,6 +103,17 @@ function LoginInner() {
         .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; }
         .oauth { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; font-family: var(--body); font-weight: 600; font-size: 1rem; color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: var(--r-md); padding: .85rem 1rem; cursor: pointer; transition: border-color .12s ease, background .12s ease; }
         .oauth:hover { border-color: var(--wagon); background: var(--paper); }
+        .sent { background: #e3f1da; border: 1px solid #c3d9ad; color: #2f5320; font-size: .88rem; font-weight: 500; padding: .8rem .9rem; border-radius: var(--r-md); margin: 0 0 18px; line-height: 1.5; width: 100%; box-sizing: border-box; text-align: left; }
+        .or { display: flex; align-items: center; gap: 12px; width: 100%; margin: 20px 0 4px; }
+        .or::before, .or::after { content: ""; height: 1px; background: var(--line); flex-grow: 1; }
+        .or span { font-family: var(--data); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+        .byemail { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 14px; text-align: left; }
+        .byemail label { font-family: var(--data); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+        .byemail input { width: 100%; min-height: 48px; font-family: var(--body); font-size: 1rem; padding: 0 14px; border: 1.5px solid var(--line); border-radius: var(--r-md); background: #fff; color: var(--ink); box-sizing: border-box; }
+        .byemail input:focus { outline: none; border-color: var(--wagon); }
+        .byemail button { width: 100%; min-height: 48px; font-family: var(--body); font-weight: 700; font-size: .95rem; color: #fff; background: var(--wagon); border: none; border-radius: var(--r-md); cursor: pointer; }
+        .byemail button:hover:not(:disabled) { background: var(--wagon-deep); }
+        .byemail button:disabled { opacity: .55; cursor: default; }
         .back { display: inline-block; margin-top: 22px; font-family: var(--data); font-size: .82rem; color: var(--muted); text-decoration: none; }
         .back:hover { color: var(--wagon-deep); }
       `}</style>
