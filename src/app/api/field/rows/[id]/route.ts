@@ -1,5 +1,6 @@
 import { actorName, requireAdmin, requireStaff } from "@/lib/api/guard";
-import { badRequest, forbidden, notFound, ok, readJson, serverError } from "@/lib/api/http";
+import { badRequest, conflict, forbidden, notFound, ok, readJson, serverError } from "@/lib/api/http";
+import { outOfDate } from "@/lib/concurrency";
 import { getPrisma } from "@/lib/db/prisma";
 import { isRowStatus, type RowStatus } from "@/types/domain";
 import { clampPercent, trimTo, trimToOrNull } from "@/lib/validate";
@@ -39,6 +40,9 @@ export async function PATCH(req: Request, ctx: RouteContext) {
   const body = await readJson<{
     pickedStart?: number;
     pickedEnd?: number;
+    /** What the caller believed the row read when they opened it. */
+    expectedStart?: number;
+    expectedEnd?: number;
     label?: string;
     status?: string;
     note?: string | null;
@@ -51,6 +55,12 @@ export async function PATCH(req: Request, ctx: RouteContext) {
 
   const existing = await prisma.fieldRow.findUnique({ where: { id } });
   if (!existing) return notFound("Row not found");
+
+  // Picking is recorded as an absolute position, so a save built on a stale
+  // reading silently undoes whoever moved the row in between.
+  if (outOfDate(body, existing)) {
+    return conflict("Someone else recorded this row while you had it open.", existing);
+  }
 
   const data: RowUpdate = {};
 

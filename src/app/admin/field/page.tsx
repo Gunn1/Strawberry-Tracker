@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { api, errorMessage } from "@/lib/api-client";
+import { ApiError, api, errorMessage } from "@/lib/api-client";
 import type { CurrentUser, Field, FieldRow, Patch, RowStatus } from "@/types/domain";
 import { AskSheet, InlineMenu, type AskConfig, type MenuAction } from "./ActionSheet";
 import FieldsOverview from "./FieldsOverview";
@@ -11,9 +11,12 @@ import PatchMap from "./PatchMap";
 import RecordSheet from "./RecordSheet";
 import RowList from "./RowList";
 import RowSettings from "./RowSettings";
-import { bestRow, fieldRows, freshColor, locatedRows, meanFresh } from "./shared";
+import { bestRow, fieldRows, freshColor, freshPct, locatedRows, meanFresh } from "./shared";
 
 type View = "map" | "list";
+
+/** How often an idle board re-reads itself while it is on screen. */
+const REFRESH_MS = 45_000;
 
 /** Where the user last was, kept per device so the phone opens where they work. */
 const SELECTED_KEY = "field-selected";
@@ -85,6 +88,31 @@ export default function FieldPage() {
     });
   }, [load]);
 
+  /** True while something is open that a refresh would disturb. */
+  const busy = saving || recordId !== null || settingsId !== null || ask !== null || openMenu !== null;
+
+  // The board used to read once and never again, so two people on the same
+  // patch each worked from their own morning snapshot. It now re-reads while
+  // it is on screen and idle, and whenever the phone comes back to it.
+  useEffect(() => {
+    if (busy) return;
+
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const timer = setInterval(refresh, REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [busy, load]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 2200);
@@ -134,16 +162,45 @@ export default function FieldPage() {
       })),
     );
 
-  async function savePicking(rowId: string, pickedStart: number, pickedEnd: number) {
+  async function savePicking(
+    rowId: string,
+    pickedStart: number,
+    pickedEnd: number,
+    fromStart: number,
+    fromEnd: number,
+  ) {
+    if (saving) return;
     setSaving(true);
     setError(null);
     try {
-      mergeRow(await api.patch<FieldRow>(`/api/field/rows/${rowId}`, { pickedStart, pickedEnd }));
+      mergeRow(
+        await api.patch<FieldRow>(`/api/field/rows/${rowId}`, {
+          pickedStart,
+          pickedEnd,
+          expectedStart: fromStart,
+          expectedEnd: fromEnd,
+        }),
+      );
       setRecordId(null);
       setToast("Saved");
     } catch (err) {
-      setError(errorMessage(err, "Couldn't save that row."));
-      await load();
+      // A refusal means the row moved under us. Close the sheet and show the
+      // true reading, rather than letting them save over it on the next tap.
+      if (err instanceof ApiError && err.status === 409) {
+        const current = (err.data as { current?: FieldRow } | null)?.current;
+        const label = recording?.row.label ?? "That row";
+        if (current) mergeRow(current);
+        setRecordId(null);
+        await load();
+        setError(
+          current
+            ? `${label} was recorded by someone else while you had it open. It now reads ${freshPct(current)}% fresh — check it and record again.`
+            : `${label} was recorded by someone else while you had it open. Check it and record again.`,
+        );
+      } else {
+        setError(errorMessage(err, "Couldn't save that row."));
+        await load();
+      }
     } finally {
       setSaving(false);
     }
@@ -478,7 +535,9 @@ export default function FieldPage() {
             setRecordId(null);
             setSettingsId(recording.row.id);
           }}
-          onSave={(start, end) => savePicking(recording.row.id, start, end)}
+          onSave={(start, end, fromStart, fromEnd) =>
+            savePicking(recording.row.id, start, end, fromStart, fromEnd)
+          }
         />
       )}
 

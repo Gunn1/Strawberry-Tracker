@@ -23,6 +23,11 @@ export function forbidden(): NextResponse {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
+/** The caller's view of the record is out of date; hand back the current one. */
+export function conflict<T>(message: string, current: T): NextResponse {
+  return NextResponse.json({ error: message, current }, { status: 409 });
+}
+
 export function notFound(message = "Not found"): NextResponse {
   return NextResponse.json({ error: message }, { status: 404 });
 }

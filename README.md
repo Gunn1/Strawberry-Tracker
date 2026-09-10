@@ -91,6 +91,14 @@ are here" marker: phone GPS lands within a few metres at best and rows sit about
 a metre apart, so nothing can place someone to a row, and a hand-set marker goes
 stale the moment they walk on.
 
+**Picking is an absolute figure, so a stale save is refused.** A row is
+recorded as "now 60% picked from the near end", not as a delta, which means two
+people working one patch would otherwise overwrite each other without either
+knowing. The board re-reads itself while it is on screen and idle, and on
+returning to the tab; and a save states the reading it was built on, so the
+server can answer 409 with the row as it actually stands rather than applying
+the write. `src/lib/concurrency.ts` holds the rule.
+
 **Row order is data, not creation order.** The map is only worth reading if the
 strips run in the same order as the rows do in the ground, and a row added in
 July lands at the end of the list wherever it sits in the field. So `sortOrder`

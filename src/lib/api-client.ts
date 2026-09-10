@@ -6,11 +6,15 @@
 
 export class ApiError extends Error {
   readonly status: number;
+  /** The whole error body, for failures that carry detail — a 409 returns
+   *  the record as the server currently has it. */
+  readonly data: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, data?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -25,7 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     const message = (body as { error?: string } | null)?.error ?? "Something went wrong.";
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, body);
   }
   return body as T;
 }

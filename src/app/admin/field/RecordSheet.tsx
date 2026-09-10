@@ -34,11 +34,16 @@ export default function RecordSheet({
   error: string | null;
   canEdit: boolean;
   onCancel: () => void;
-  onSave: (pickedStart: number, pickedEnd: number) => void;
+  /** Also reports the reading the sheet opened with, so the server can
+   *  refuse a save built on a row someone else has since moved. */
+  onSave: (pickedStart: number, pickedEnd: number, fromStart: number, fromEnd: number) => void;
   onSettings: () => void;
 }) {
   const [start, setStart] = useState(row.pickedStart);
   const [end, setEnd] = useState(row.pickedEnd);
+  // What the row read when this sheet opened. Held so a background refresh
+  // cannot quietly change what the save claims to be based on.
+  const [from] = useState({ start: row.pickedStart, end: row.pickedEnd });
 
   const centred = useIsWide();
 
@@ -55,7 +60,7 @@ export default function RecordSheet({
 
   const middle = Math.max(0, 100 - start - end);
   const fill = STATUS_META[row.status].fill;
-  const dirty = start !== row.pickedStart || end !== row.pickedEnd;
+  const dirty = start !== from.start || end !== from.end;
 
   return (
     <div className="overlay" style={centred ? { alignItems: "center" } : undefined} onClick={onCancel}>
@@ -96,7 +101,7 @@ export default function RecordSheet({
         <div className="control">
           <div className="clabel">
             <span>Picked from the near end</span>
-            <span className="was">was {row.pickedStart}%</span>
+            <span className="was">was {from.start}%</span>
           </div>
           <div className="stepper">
             <button onClick={() => bumpStart(-STEP)} disabled={start === 0} aria-label="Less picked from the near end">
@@ -112,7 +117,7 @@ export default function RecordSheet({
         <div className="control">
           <div className="clabel">
             <span>Picked from the far end</span>
-            <span className="was">was {row.pickedEnd}%</span>
+            <span className="was">was {from.end}%</span>
           </div>
           <div className="stepper">
             <button onClick={() => bumpEnd(-STEP)} disabled={end === 0} aria-label="Less picked from the far end">
@@ -138,7 +143,7 @@ export default function RecordSheet({
 
         <div className="actions">
           <button className="cancel" onClick={onCancel} disabled={saving}>Cancel</button>
-          <button className="save" onClick={() => onSave(start, end)} disabled={saving || !dirty}>
+          <button className="save" onClick={() => onSave(start, end, from.start, from.end)} disabled={saving || !dirty}>
             {saving ? "Saving…" : dirty ? `Save ${row.label}` : "No change"}
           </button>
         </div>
