@@ -1,7 +1,7 @@
 "use client";
 
 import { ROW_STATUSES } from "@/types/domain";
-import { STATUS_META, STRAW } from "./shared";
+import { STATUS_META } from "./shared";
 
 /**
  * The map carries six status colours plus the straw of picked ground, and
@@ -33,7 +33,7 @@ export default function MapLegend() {
         .swatches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
         .entry { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--ink); line-height: 1.35; }
         .chip { width: 13px; height: 13px; border-radius: 3px; flex: none; }
-        .chip.straw { --straw-angle: 90deg; background: ${STRAW}; background-size: 8px 100%; }
+        .chip.straw { --straw-angle: 90deg; background: var(--straw); background-size: 8px 100%; }
         .straw-entry { color: var(--muted); margin-top: 2px; }
       `}</style>
     </div>

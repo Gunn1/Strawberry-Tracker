@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { FieldRow } from "@/types/domain";
-import { STATUS_META, STEP, STRAW, freshPct } from "./shared";
+import { STATUS_META, STEP, freshPct } from "./shared";
 import { useIsWide } from "./viewport";
 
 function clamp(value: number, max: number): number {
@@ -143,89 +143,88 @@ export default function RecordSheet({
           </button>
         </div>
         <p className="hint">Nothing is recorded until you save. Now {freshPct({ pickedStart: start, pickedEnd: end })}% fresh.</p>
-
-        <style jsx>{`
-
-          .sheet.dialog, .panel.dialog {
-            border-radius: 22px; margin: 0 18px; max-height: 88vh;
-            box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45);
-          }
-          .overlay {
-            position: fixed; inset: 0; z-index: 60; background: rgba(39, 31, 23, 0.42);
-            display: flex; align-items: flex-end; justify-content: center;
-          }
-          .sheet {
-            background: var(--paper); width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
-            border-radius: 28px 28px 0 0; padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
-            box-shadow: 0 -18px 50px -20px rgba(39, 31, 23, 0.5);
-          }
-          .grab { display: block; width: 40px; height: 4px; border-radius: 999px; background: #cdb892; margin: 0 auto 16px; }
-          .head { display: flex; align-items: center; gap: 12px; }
-          .headtext { display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0; }
-          .settings {
-            width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center;
-            border: 1px solid var(--line); background: #fff; border-radius: var(--r-pill); color: var(--muted); cursor: pointer;
-          }
-          .settings:hover { color: var(--ink); border-color: var(--muted); }
-          .head h2 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0; }
-          .where { font-family: var(--data); font-size: 0.76rem; color: var(--muted); }
-
-          .preview { margin-top: 18px; display: flex; flex-direction: column; gap: 7px; }
-          .bar { display: flex; height: 56px; border-radius: 6px; overflow: hidden; background: #d9c7a6; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
-          .seg { display: block; height: 100%; }
-          .seg.straw { --straw-angle: 90deg; background: ${STRAW}; }
-          .scale { display: flex; }
-          .scale span {
-            font-family: var(--data); font-size: 0.68rem; color: var(--muted); text-align: center;
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-          }
-          .scale .mid { color: #4f7a33; }
-
-          .control { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
-          .clabel { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-          .clabel span:first-child { font-weight: 700; font-size: 0.95rem; }
-          .was { font-family: var(--data); font-size: 0.7rem; color: var(--muted); }
-          .stepper { display: flex; align-items: stretch; gap: 10px; }
-          .stepper button {
-            width: 64px; height: 56px; flex: none; display: inline-flex; align-items: center; justify-content: center;
-            border: 1.5px solid var(--line); background: #fff; border-radius: 14px; color: var(--ink); cursor: pointer;
-          }
-          .stepper button:hover:not(:disabled) { border-color: var(--ink); }
-          .stepper button:disabled { opacity: 0.4; cursor: default; }
-          .value {
-            flex-grow: 1; display: flex; align-items: center; justify-content: center; height: 56px;
-            background: #fff; border: 1.5px solid var(--line); border-radius: 14px;
-            font-family: var(--display); font-weight: 600; font-size: 1.6rem;
-          }
-
-          .jump { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; }
-          .jlabel { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-          .jumps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-          .jumps button {
-            height: 46px; font-weight: 700; font-size: 0.84rem; color: var(--ink);
-            background: var(--paper-2); border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer;
-          }
-          .jumps button:hover { border-color: var(--ink); }
-
-          .failed {
-            margin: 20px 0 0; background: #fdeee7; border: 1px solid #f4d3c4;
-            color: var(--wagon-deep); font-size: 0.86rem; font-weight: 500;
-            padding: 0.75rem 0.9rem; border-radius: var(--r-md); line-height: 1.5;
-          }
-          .actions { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
-          .cancel {
-            flex: none; padding: 0 22px; height: 52px; font-weight: 700; font-size: 0.95rem; color: var(--muted);
-            background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
-          }
-          .save {
-            flex-grow: 1; height: 52px; font-weight: 700; font-size: 1rem; color: #fff;
-            background: var(--wagon); border: none; border-radius: var(--r-pill); cursor: pointer;
-          }
-          .save:hover:not(:disabled) { background: var(--wagon-deep); }
-          .save:disabled, .cancel:disabled { opacity: 0.55; cursor: default; }
-          .hint { margin: 12px 0 0; font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.45; }
-        `}</style>
       </div>
+      <style jsx>{`
+
+        .sheet.dialog, .panel.dialog {
+          border-radius: 22px; margin: 0 18px; max-height: 88vh;
+          box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45);
+        }
+        .overlay {
+          position: fixed; inset: 0; z-index: 60; background: rgba(39, 31, 23, 0.42);
+          display: flex; align-items: flex-end; justify-content: center;
+        }
+        .sheet {
+          background: var(--paper); width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+          border-radius: 28px 28px 0 0; padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
+          box-shadow: 0 -18px 50px -20px rgba(39, 31, 23, 0.5);
+        }
+        .grab { display: block; width: 40px; height: 4px; border-radius: 999px; background: #cdb892; margin: 0 auto 16px; }
+        .head { display: flex; align-items: center; gap: 12px; }
+        .headtext { display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0; }
+        .settings {
+          width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+          border: 1px solid var(--line); background: #fff; border-radius: var(--r-pill); color: var(--muted); cursor: pointer;
+        }
+        .settings:hover { color: var(--ink); border-color: var(--muted); }
+        .head h2 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0; }
+        .where { font-family: var(--data); font-size: 0.76rem; color: var(--muted); }
+
+        .preview { margin-top: 18px; display: flex; flex-direction: column; gap: 7px; }
+        .bar { display: flex; height: 56px; border-radius: 6px; overflow: hidden; background: #d9c7a6; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+        .seg { display: block; height: 100%; }
+        .seg.straw { --straw-angle: 90deg; background: var(--straw); }
+        .scale { display: flex; }
+        .scale span {
+          font-family: var(--data); font-size: 0.68rem; color: var(--muted); text-align: center;
+          overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .scale .mid { color: #4f7a33; }
+
+        .control { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .clabel { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+        .clabel span:first-child { font-weight: 700; font-size: 0.95rem; }
+        .was { font-family: var(--data); font-size: 0.7rem; color: var(--muted); }
+        .stepper { display: flex; align-items: stretch; gap: 10px; }
+        .stepper button {
+          width: 64px; height: 56px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+          border: 1.5px solid var(--line); background: #fff; border-radius: 14px; color: var(--ink); cursor: pointer;
+        }
+        .stepper button:hover:not(:disabled) { border-color: var(--ink); }
+        .stepper button:disabled { opacity: 0.4; cursor: default; }
+        .value {
+          flex-grow: 1; display: flex; align-items: center; justify-content: center; height: 56px;
+          background: #fff; border: 1.5px solid var(--line); border-radius: 14px;
+          font-family: var(--display); font-weight: 600; font-size: 1.6rem;
+        }
+
+        .jump { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; }
+        .jlabel { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+        .jumps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .jumps button {
+          height: 46px; font-weight: 700; font-size: 0.84rem; color: var(--ink);
+          background: var(--paper-2); border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer;
+        }
+        .jumps button:hover { border-color: var(--ink); }
+
+        .failed {
+          margin: 20px 0 0; background: #fdeee7; border: 1px solid #f4d3c4;
+          color: var(--wagon-deep); font-size: 0.86rem; font-weight: 500;
+          padding: 0.75rem 0.9rem; border-radius: var(--r-md); line-height: 1.5;
+        }
+        .actions { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+        .cancel {
+          flex: none; padding: 0 22px; height: 52px; font-weight: 700; font-size: 0.95rem; color: var(--muted);
+          background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
+        }
+        .save {
+          flex-grow: 1; height: 52px; font-weight: 700; font-size: 1rem; color: #fff;
+          background: var(--wagon); border: none; border-radius: var(--r-pill); cursor: pointer;
+        }
+        .save:hover:not(:disabled) { background: var(--wagon-deep); }
+        .save:disabled, .cancel:disabled { opacity: 0.55; cursor: default; }
+        .hint { margin: 12px 0 0; font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.45; }
+      `}</style>
     </div>
   );
 }

@@ -213,65 +213,65 @@ export default function RowSettings({
 
         <button className="delete" onClick={onDelete}>Delete {row.label}</button>
 
-        <style jsx>{`
-
-          .sheet.dialog, .panel.dialog {
-            border-radius: 22px; margin: 0 18px; max-height: 88vh;
-            box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45);
-          }
-          .overlay { position: fixed; inset: 0; z-index: 60; background: rgba(39,31,23,.42); display: flex; align-items: flex-end; justify-content: center; }
-          .panel {
-            background: var(--paper); width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
-            border-radius: 28px 28px 0 0; padding: 18px 18px calc(24px + env(safe-area-inset-bottom));
-            box-shadow: 0 -18px 50px -20px rgba(39,31,23,.5);
-          }
-          .head { display: flex; align-items: center; gap: 12px; }
-          .back { width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff; border-radius: var(--r-pill); color: var(--ink); cursor: pointer; }
-          .titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-          .titles h2 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0; }
-          .titles span { font-family: var(--data); font-size: 0.7rem; color: var(--muted); }
-
-          .failed {
-            margin: 18px 0 0; background: #fdeee7; border: 1px solid #f4d3c4;
-            color: var(--wagon-deep); font-size: 0.86rem; font-weight: 500;
-            padding: 0.75rem 0.9rem; border-radius: var(--r-md); line-height: 1.5;
-          }
-          .glabel { display: block; font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-          .statuses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
-          .statuses .st {
-            min-height: 50px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px;
-            font-weight: 700; font-size: 0.84rem; border: 1.5px solid var(--line); border-radius: 12px;
-            cursor: pointer; text-align: left;
-          }
-          .statuses .st.on { border-width: 2px; }
-          .sdot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
-
-          .order { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
-          .olabel { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-          .opos { font-family: var(--data); font-size: 0.8rem; color: var(--ink); }
-          .obtns { display: flex; gap: 8px; flex: none; }
-          .obtns button {
-            width: 52px; height: 48px; display: inline-flex; align-items: center; justify-content: center;
-            border: 1.5px solid var(--line); background: #fff; border-radius: 12px; color: var(--ink); cursor: pointer;
-          }
-          .obtns button:hover:not(:disabled) { border-color: var(--ink); }
-          .obtns button:disabled { opacity: 0.4; cursor: default; }
-
-          .field { display: block; margin-top: 20px; }
-          .field input {
-            display: block; width: 100%; margin-top: 8px; height: 50px; font-size: 1rem; padding: 0 14px;
-            border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
-          }
-          .field input:focus { outline: none; border-color: var(--wagon); }
-
-          .histcard { margin-top: 24px; background: #fff; border: 1px solid #cdb892; border-radius: 20px; padding: 16px; }
-          .delete {
-            width: 100%; margin-top: 24px; height: 50px; font-weight: 700; font-size: 0.9rem; color: var(--wagon-deep);
-            background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
-          }
-          .delete:hover { border-color: var(--wagon); }
-        `}</style>
       </div>
+      <style jsx>{`
+
+        .sheet.dialog, .panel.dialog {
+          border-radius: 22px; margin: 0 18px; max-height: 88vh;
+          box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45);
+        }
+        .overlay { position: fixed; inset: 0; z-index: 60; background: rgba(39,31,23,.42); display: flex; align-items: flex-end; justify-content: center; }
+        .panel {
+          background: var(--paper); width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+          border-radius: 28px 28px 0 0; padding: 18px 18px calc(24px + env(safe-area-inset-bottom));
+          box-shadow: 0 -18px 50px -20px rgba(39,31,23,.5);
+        }
+        .head { display: flex; align-items: center; gap: 12px; }
+        .back { width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff; border-radius: var(--r-pill); color: var(--ink); cursor: pointer; }
+        .titles { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .titles h2 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0; }
+        .titles span { font-family: var(--data); font-size: 0.7rem; color: var(--muted); }
+
+        .failed {
+          margin: 18px 0 0; background: #fdeee7; border: 1px solid #f4d3c4;
+          color: var(--wagon-deep); font-size: 0.86rem; font-weight: 500;
+          padding: 0.75rem 0.9rem; border-radius: var(--r-md); line-height: 1.5;
+        }
+        .glabel { display: block; font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+        .statuses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+        .statuses .st {
+          min-height: 50px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px;
+          font-weight: 700; font-size: 0.84rem; border: 1.5px solid var(--line); border-radius: 12px;
+          cursor: pointer; text-align: left;
+        }
+        .statuses .st.on { border-width: 2px; }
+        .sdot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+        .order { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+        .olabel { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .opos { font-family: var(--data); font-size: 0.8rem; color: var(--ink); }
+        .obtns { display: flex; gap: 8px; flex: none; }
+        .obtns button {
+          width: 52px; height: 48px; display: inline-flex; align-items: center; justify-content: center;
+          border: 1.5px solid var(--line); background: #fff; border-radius: 12px; color: var(--ink); cursor: pointer;
+        }
+        .obtns button:hover:not(:disabled) { border-color: var(--ink); }
+        .obtns button:disabled { opacity: 0.4; cursor: default; }
+
+        .field { display: block; margin-top: 20px; }
+        .field input {
+          display: block; width: 100%; margin-top: 8px; height: 50px; font-size: 1rem; padding: 0 14px;
+          border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+        }
+        .field input:focus { outline: none; border-color: var(--wagon); }
+
+        .histcard { margin-top: 24px; background: #fff; border: 1px solid #cdb892; border-radius: 20px; padding: 16px; }
+        .delete {
+          width: 100%; margin-top: 24px; height: 50px; font-weight: 700; font-size: 0.9rem; color: var(--wagon-deep);
+          background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
+        }
+        .delete:hover { border-color: var(--wagon); }
+      `}</style>
     </div>
   );
 }

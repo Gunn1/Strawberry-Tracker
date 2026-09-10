@@ -70,25 +70,6 @@ export function InlineMenu({ actions, onClose }: { actions: MenuAction[]; onClos
   );
 }
 
-/** Chrome for the one sheet that is still a sheet: the typed prompt. */
-const SHEET_CSS = `
-  .overlay { position: fixed; inset: 0; z-index: 70; background: rgba(39,31,23,.42); display: flex; align-items: flex-end; justify-content: center; }
-  .sheet {
-    background: var(--paper); width: 100%; max-width: 520px; border-radius: 28px 28px 0 0;
-    padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
-    box-shadow: 0 -18px 50px -20px rgba(39,31,23,.5);
-    /* Was the only overlay without these: with a soft keyboard up, the title
-       and first field went above the top of the screen unreachable. */
-    max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
-  }
-  .sheet.dialog {
-    border-radius: 22px; margin: 0 18px; max-height: 88dvh;
-    box-shadow: 0 30px 60px -28px rgba(30,58,43,.45);
-  }
-  .title { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0; }
-  .message { margin: 8px 0 0; font-size: 0.9rem; color: var(--muted); line-height: 1.5; }
-`;
-
 export interface AskConfig {
   title: string;
   message?: string;
@@ -153,29 +134,44 @@ export function AskSheet({ config, onClose }: { config: AskConfig; onClose: () =
           </button>
         </div>
 
-        <style jsx>{`
-          ${SHEET_CSS}
-          .sheet.dialog { border-radius: 20px; margin: 0 18px; box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45); }
-          .field { display: block; margin-top: 16px; }
-          .field span { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-          .field input {
-            display: block; width: 100%; margin-top: 8px; height: 50px; font-size: 1rem; padding: 0 14px;
-            border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
-          }
-          .field input:focus { outline: none; border-color: var(--wagon); }
-          .row { display: flex; gap: 10px; margin-top: 22px; }
-          .cancel {
-            flex: none; padding: 0 22px; height: 52px; font-weight: 700; font-size: 0.95rem; color: var(--muted);
-            background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
-          }
-          .go {
-            flex-grow: 1; height: 52px; font-weight: 700; font-size: 1rem; color: #fff;
-            background: var(--wagon); border: none; border-radius: var(--r-pill); cursor: pointer;
-          }
-          .go:hover:not(:disabled) { background: var(--wagon-deep); }
-          .go:disabled { opacity: 0.55; cursor: default; }
-        `}</style>
       </form>
+      <style jsx>{`
+
+        .overlay { position: fixed; inset: 0; z-index: 70; background: rgba(39,31,23,.42); display: flex; align-items: flex-end; justify-content: center; }
+        .sheet {
+          background: var(--paper); width: 100%; max-width: 520px; border-radius: 28px 28px 0 0;
+          padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
+          box-shadow: 0 -18px 50px -20px rgba(39,31,23,.5);
+          /* Was the only overlay without these: with a soft keyboard up, the title
+             and first field went above the top of the screen unreachable. */
+          max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+        }
+        .sheet.dialog {
+          border-radius: 22px; margin: 0 18px; max-height: 88dvh;
+          box-shadow: 0 30px 60px -28px rgba(30,58,43,.45);
+        }
+        .title { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin: 0; }
+        .message { margin: 8px 0 0; font-size: 0.9rem; color: var(--muted); line-height: 1.5; }
+        .sheet.dialog { border-radius: 20px; margin: 0 18px; box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45); }
+        .field { display: block; margin-top: 16px; }
+        .field span { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+        .field input {
+          display: block; width: 100%; margin-top: 8px; height: 50px; font-size: 1rem; padding: 0 14px;
+          border: 1.5px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+        }
+        .field input:focus { outline: none; border-color: var(--wagon); }
+        .row { display: flex; gap: 10px; margin-top: 22px; }
+        .cancel {
+          flex: none; padding: 0 22px; height: 52px; font-weight: 700; font-size: 0.95rem; color: var(--muted);
+          background: transparent; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
+        }
+        .go {
+          flex-grow: 1; height: 52px; font-weight: 700; font-size: 1rem; color: #fff;
+          background: var(--wagon); border: none; border-radius: var(--r-pill); cursor: pointer;
+        }
+        .go:hover:not(:disabled) { background: var(--wagon-deep); }
+        .go:disabled { opacity: 0.55; cursor: default; }
+      `}</style>
     </div>
   );
 }

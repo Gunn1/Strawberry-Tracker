@@ -1,7 +1,7 @@
 "use client";
 
 import type { FieldRow } from "@/types/domain";
-import { STATUS_META, STRAW, byFreshest, freshColor, freshPct, type LocatedRow } from "./shared";
+import { STATUS_META, byFreshest, freshColor, freshPct, type LocatedRow } from "./shared";
 
 /**
  * Every row in the field, freshest first. The map answers "where am I"; this
@@ -79,7 +79,7 @@ export default function RowList({
           border-radius: 4px; overflow: hidden; background: #d9c7a6;
         }
         .seg { display: block; height: 100%; }
-        .seg.straw { --straw-angle: 90deg; background: ${STRAW}; }
+        .seg.straw { --straw-angle: 90deg; background: var(--straw); }
         .who { display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0; }
         .name {
           font-weight: 700; font-size: 0.9rem; color: var(--ink);

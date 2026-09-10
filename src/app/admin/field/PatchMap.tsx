@@ -2,7 +2,7 @@
 
 import type { FieldRow, Patch } from "@/types/domain";
 import { InlineMenu, type MenuAction } from "./ActionSheet";
-import { STATUS_META, STRAW, freshPct } from "./shared";
+import { STATUS_META, freshPct } from "./shared";
 
 /**
  * Row labels are free text, but the map has room for two or three characters.
@@ -181,7 +181,7 @@ export default function PatchMap({
         }
         .col:active .strip { transform: scale(0.98); }
         .seg { display: block; width: 100%; }
-        .seg.straw { --straw-angle: 0deg; background: ${STRAW}; }
+        .seg.straw { --straw-angle: 0deg; background: var(--straw); }
         .num {
           font-family: var(--data); font-size: 0.72rem; font-weight: 500; color: var(--ink);
           text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

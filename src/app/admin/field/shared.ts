@@ -13,9 +13,6 @@ export const STATUS_META: Record<RowStatus, { label: string; color: string; bg: 
 /** Picking progress moves in steps this size. */
 export const STEP = 5;
 
-/** The straw fill standing for ground that has already been picked. */
-export const STRAW = "repeating-linear-gradient(var(--straw-angle,90deg),#d6c4a2,#d6c4a2 6px,#cdba95 6px,#cdba95 12px)";
-
 /** How much of a row is still unpicked, as a percentage. */
 export function freshPct(row: Pick<FieldRow, "pickedStart" | "pickedEnd">): number {
   return Math.max(0, 100 - row.pickedStart - row.pickedEnd);

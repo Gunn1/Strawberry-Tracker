@@ -1,7 +1,7 @@
 "use client";
 
 import type { Field } from "@/types/domain";
-import { STATUS_META, STRAW, fieldRows, freshColor, meanFresh } from "./shared";
+import { STATUS_META, fieldRows, freshColor, meanFresh } from "./shared";
 
 /**
  * Every field at once, each drawing its patches as thin strips. A field that
@@ -95,7 +95,7 @@ export default function FieldsOverview({
         .mini { flex: 1 1 0; min-width: 1px; display: flex; flex-direction: column; border-radius: 2px; overflow: hidden; background: #d9c7a6; }
         .mini.empty { background: #e4d8c2; }
         .mseg { display: block; width: 100%; }
-        .mseg.straw { --straw-angle: 0deg; background: ${STRAW}; }
+        .mseg.straw { --straw-angle: 0deg; background: var(--straw); }
         .labels { display: flex; gap: 7px; }
         .labels span {
           flex-basis: 0; min-width: 0; text-align: center; font-family: var(--data); font-size: 0.64rem;

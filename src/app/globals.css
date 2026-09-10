@@ -21,6 +21,16 @@
   --body:    var(--font-dm-sans), system-ui, sans-serif;
   --data:    var(--font-dm-mono), ui-monospace, monospace;
 
+  /* Ground already picked. A token rather than a JS string because any
+     interpolation inside a styled-jsx block makes the whole block dynamic,
+     and those emit a __jsx-style-dynamic-selector placeholder that is never
+     substituted, so none of the block's rules ever match. Set
+     --straw-angle on the element: 90deg across a bar, 0deg down a strip. */
+  --straw: repeating-linear-gradient(
+    var(--straw-angle, 90deg),
+    #d6c4a2, #d6c4a2 6px, #cdba95 6px, #cdba95 12px
+  );
+
   --r-sm: 8px;  --r-md: 16px;  --r-lg: 28px;  --r-pill: 999px;
   --shadow: 0 1px 2px rgba(39,31,23,.05), 0 12px 30px -16px rgba(39,31,23,.22);
   --shadow-lg: 0 30px 60px -28px rgba(30,58,43,.45);
