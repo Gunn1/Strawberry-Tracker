@@ -30,9 +30,11 @@ const dmMono = DM_Mono({
   weight: ["400", "500"],
 });
 
-// Set NEXT_PUBLIC_SITE_URL to your real domain in Vercel so share links and
-// structured data use absolute URLs.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://carters-red-wagon-farm.vercel.app";
+// The site's public origin. Read at BUILD time, so it has to be set in the
+// environment that runs `pnpm deploy`, not just on the deployed worker.
+// Everything absolute depends on it: share cards, the sitemap, the structured
+// data, and the change-or-cancel link in every booking email.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://strawberry.tylergunn.me";
 
 const TITLE = "Carter's Red Wagon Farm — U-Pick Strawberries, Park Rapids, MN";
 const DESCRIPTION =
