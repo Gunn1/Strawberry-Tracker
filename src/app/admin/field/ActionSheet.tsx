@@ -1,6 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+
+/**
+ * Below this width a sheet rises from the bottom, which is where a thumb is.
+ * Above it that would put the menu miles from the button that opened it, so it
+ * hangs off the button instead.
+ */
+const ANCHORED_FROM = 700;
+
+function isWide(): boolean {
+  return typeof window !== "undefined" && window.innerWidth >= ANCHORED_FROM;
+}
+
+/** Place a popover under its button, kept inside the viewport. */
+function popoverStyle(anchor: DOMRect, itemCount: number): CSSProperties {
+  const width = 264;
+  const gap = 8;
+  const estimated = 92 + itemCount * 60;
+  const left = Math.min(Math.max(gap, anchor.right - width), window.innerWidth - width - gap);
+  const belowFits = anchor.bottom + gap + estimated <= window.innerHeight;
+  return belowFits
+    ? { position: "fixed", top: anchor.bottom + gap, left, width }
+    : { position: "fixed", bottom: window.innerHeight - anchor.top + gap, left, width };
+}
 
 /** Shared chrome for the small sheets that slide up from the bottom. */
 const SHEET_CSS = `
@@ -24,10 +47,13 @@ export interface MenuAction {
 export function MenuSheet({
   title,
   actions,
+  anchor,
   onClose,
 }: {
   title: string;
   actions: MenuAction[];
+  /** Where the button that opened this sits, so the menu can hang off it. */
+  anchor?: DOMRect;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -36,9 +62,18 @@ export function MenuSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const [anchored] = useState(() => !!anchor && isWide());
+  const style = anchored && anchor ? popoverStyle(anchor, actions.length) : undefined;
+
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <div className={anchored ? "overlay bare" : "overlay"} onClick={onClose}>
+      <div
+        className={anchored ? "sheet popover" : "sheet"}
+        style={style}
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="title">{title}</h3>
         <div className="actions">
           {actions.map((a) => (
@@ -54,9 +89,20 @@ export function MenuSheet({
             </button>
           ))}
         </div>
-        <button className="close" onClick={onClose}>Cancel</button>
+        {!anchored && <button className="close" onClick={onClose}>Cancel</button>}
         <style jsx>{`
           ${SHEET_CSS}
+          /* Anchored: a plain popover by the button, no dimming and no rise. */
+          .overlay.bare { background: transparent; display: block; }
+          .sheet.popover {
+            max-width: none; border-radius: 16px; padding: 14px;
+            border: 1px solid var(--line);
+            box-shadow: 0 18px 40px -18px rgba(39, 31, 23, 0.45);
+            max-height: 80vh; overflow-y: auto;
+          }
+          .sheet.popover .title { font-size: 1.05rem; }
+          .sheet.popover .actions { margin-top: 12px; gap: 6px; }
+          .sheet.popover .act { min-height: 44px; font-size: 0.88rem; border-radius: 10px; }
           .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
           .act {
             min-height: 52px; padding: 0 16px; text-align: left; font-weight: 700; font-size: 0.95rem;
@@ -90,6 +136,7 @@ export interface AskConfig {
 
 /** One typed answer, or a confirmation. Replaces window.prompt / window.confirm. */
 export function AskSheet({ config, onClose }: { config: AskConfig; onClose: () => void }) {
+  const [centred] = useState(isWide);
   const [value, setValue] = useState(config.input?.defaultValue ?? "");
   const [value2, setValue2] = useState(config.input2?.defaultValue ?? "");
 
@@ -109,8 +156,8 @@ export function AskSheet({ config, onClose }: { config: AskConfig; onClose: () =
   }
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <form className="sheet" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+    <div className={centred ? "overlay centred" : "overlay"} onClick={onClose}>
+      <form className={centred ? "sheet dialog" : "sheet"} onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h3 className="title">{config.title}</h3>
         {config.message && <p className="message">{config.message}</p>}
 
@@ -141,6 +188,8 @@ export function AskSheet({ config, onClose }: { config: AskConfig; onClose: () =
 
         <style jsx>{`
           ${SHEET_CSS}
+          .overlay.centred { align-items: center; }
+          .sheet.dialog { border-radius: 20px; margin: 0 18px; box-shadow: 0 30px 60px -28px rgba(30, 58, 43, 0.45); }
           .field { display: block; margin-top: 16px; }
           .field span { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
           .field input {

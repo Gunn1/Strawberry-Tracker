@@ -49,7 +49,7 @@ export default function FieldPage() {
 
   const [recordId, setRecordId] = useState<string | null>(null);
   const [settingsId, setSettingsId] = useState<string | null>(null);
-  const [menu, setMenu] = useState<{ title: string; actions: MenuAction[] } | null>(null);
+  const [menu, setMenu] = useState<{ title: string; actions: MenuAction[]; anchor?: DOMRect } | null>(null);
   const [ask, setAsk] = useState<AskConfig | null>(null);
 
   const load = useCallback(async () => {
@@ -162,8 +162,9 @@ export default function FieldPage() {
 
   /* ---------- admin menus ---------- */
 
-  function openPatchMenu(patch: Patch) {
+  function openPatchMenu(patch: Patch, anchor?: DOMRect) {
     setMenu({
+      anchor,
       title: patch.name,
       actions: [
         {
@@ -231,8 +232,9 @@ export default function FieldPage() {
     });
   }
 
-  function openFieldMenu(field: Field) {
+  function openFieldMenu(field: Field, anchor?: DOMRect) {
     setMenu({
+      anchor,
       title: field.name,
       actions: [
         {
@@ -327,7 +329,11 @@ export default function FieldPage() {
                 </span>
               </div>
               {isAdmin && (
-                <button className="fmenu" onClick={() => openFieldMenu(selected)} aria-label={`Options for ${selected.name}`}>
+                <button
+                  className="fmenu"
+                  onClick={(e) => openFieldMenu(selected, e.currentTarget.getBoundingClientRect())}
+                  aria-label={`Options for ${selected.name}`}
+                >
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
                 </button>
               )}
@@ -374,7 +380,7 @@ export default function FieldPage() {
                     bestRowId={best?.row.id ?? null}
                     isAdmin={isAdmin}
                     onPickRow={(row) => setRecordId(row.id)}
-                    onPatchMenu={() => openPatchMenu(patch)}
+                    onPatchMenu={(anchor) => openPatchMenu(patch, anchor)}
                   />
                 ))
               )
@@ -464,7 +470,9 @@ export default function FieldPage() {
         />
       )}
 
-      {menu && <MenuSheet title={menu.title} actions={menu.actions} onClose={() => setMenu(null)} />}
+      {menu && (
+        <MenuSheet title={menu.title} actions={menu.actions} anchor={menu.anchor} onClose={() => setMenu(null)} />
+      )}
       {ask && <AskSheet config={ask} onClose={() => setAsk(null)} />}
       {toast && <div className="toast">{toast}</div>}
 

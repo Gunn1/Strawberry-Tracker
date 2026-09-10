@@ -48,7 +48,7 @@ export default function PatchMap({
   bestRowId: string | null;
   isAdmin: boolean;
   onPickRow: (row: FieldRow) => void;
-  onPatchMenu: () => void;
+  onPatchMenu: (anchor: DOMRect) => void;
 }) {
   const rows = patch.rows;
   const fresh = rows.length ? Math.round(rows.reduce((s, r) => s + freshPct(r), 0) / rows.length) : 0;
@@ -64,7 +64,11 @@ export default function PatchMap({
           </span>
         </div>
         {isAdmin && (
-          <button className="pmenu" onClick={onPatchMenu} aria-label={`Options for ${patch.name}`}>
+          <button
+            className="pmenu"
+            onClick={(e) => onPatchMenu(e.currentTarget.getBoundingClientRect())}
+            aria-label={`Options for ${patch.name}`}
+          >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
             </svg>
