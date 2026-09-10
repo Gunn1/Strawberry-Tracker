@@ -6,7 +6,7 @@ import { api } from "@/lib/api-client";
 import { formatDate, formatTime } from "@/lib/format/datetime";
 import { ROW_STATUSES, type FieldRow, type RowEvent, type RowStatus } from "@/types/domain";
 import { STATUS_META, freshPct } from "./shared";
-import { isWide } from "./viewport";
+import { useIsWide } from "./viewport";
 
 /** A row's recorded changes, drawn against real elapsed time. */
 function History({ rowId }: { rowId: string }) {
@@ -85,9 +85,12 @@ function History({ rowId }: { rowId: string }) {
         .xaxis span { font-family: var(--data); font-size: 0.6rem; color: var(--muted); }
         .events { list-style: none; margin: 14px 0 0; padding: 0; }
         .events li { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
-        .when { font-family: var(--data); font-size: 0.7rem; color: var(--muted); width: 8.4rem; flex: none; }
-        .what { font-size: 0.84rem; flex-grow: 1; }
-        .who { font-family: var(--data); font-size: 0.7rem; color: var(--muted); }
+        .when { font-family: var(--data); font-size: 0.7rem; color: var(--muted); width: 7rem; flex: none; }
+        .what { font-size: 0.84rem; flex-grow: 1; min-width: 0; overflow-wrap: anywhere; }
+        .who {
+          font-family: var(--data); font-size: 0.7rem; color: var(--muted);
+          max-width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
       `}</style>
     </div>
   );
@@ -98,6 +101,7 @@ export default function RowSettings({
   row,
   patchName,
   fieldName,
+  error,
   position,
   total,
   onClose,
@@ -108,6 +112,8 @@ export default function RowSettings({
   row: FieldRow;
   patchName: string;
   fieldName: string;
+  /** A failed change. Shown here because the page's banner sits behind this. */
+  error: string | null;
   /** 1-based place in the patch, matching the order the map draws. */
   position: number;
   total: number;
@@ -116,7 +122,7 @@ export default function RowSettings({
   onMove: (direction: "up" | "down") => void;
   onDelete: () => void;
 }) {
-  const [centred] = useState(isWide);
+  const centred = useIsWide();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -136,6 +142,8 @@ export default function RowSettings({
             <span>{fieldName} &middot; {patchName} &middot; {freshPct(row)}% fresh</span>
           </div>
         </div>
+
+        {error && <p className="failed">{error}</p>}
 
         <span className="glabel">Status</span>
         <div className="statuses">
@@ -213,7 +221,7 @@ export default function RowSettings({
           }
           .overlay { position: fixed; inset: 0; z-index: 60; background: rgba(39,31,23,.42); display: flex; align-items: flex-end; justify-content: center; }
           .panel {
-            background: var(--paper); width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto;
+            background: var(--paper); width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
             border-radius: 28px 28px 0 0; padding: 18px 18px calc(24px + env(safe-area-inset-bottom));
             box-shadow: 0 -18px 50px -20px rgba(39,31,23,.5);
           }
@@ -223,6 +231,11 @@ export default function RowSettings({
           .titles h2 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0; }
           .titles span { font-family: var(--data); font-size: 0.7rem; color: var(--muted); }
 
+          .failed {
+            margin: 18px 0 0; background: #fdeee7; border: 1px solid #f4d3c4;
+            color: var(--wagon-deep); font-size: 0.86rem; font-weight: 500;
+            padding: 0.75rem 0.9rem; border-radius: var(--r-md); line-height: 1.5;
+          }
           .glabel { display: block; font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
           .statuses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
           .statuses .st {

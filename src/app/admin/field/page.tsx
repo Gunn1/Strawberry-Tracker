@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api, errorMessage } from "@/lib/api-client";
 import type { CurrentUser, Field, FieldRow, Patch, RowStatus } from "@/types/domain";
-import { AskSheet, MenuSheet, type AskConfig, type MenuAction } from "./ActionSheet";
+import { AskSheet, InlineMenu, type AskConfig, type MenuAction } from "./ActionSheet";
 import FieldsOverview from "./FieldsOverview";
 import MapLegend from "./MapLegend";
 import PatchMap from "./PatchMap";
@@ -42,6 +42,8 @@ export default function FieldPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  /** Any write in flight. Everything that writes checks it, so a second
+   *  tap cannot duplicate a patch or land two status changes out of order. */
   const [saving, setSaving] = useState(false);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -49,7 +51,8 @@ export default function FieldPage() {
 
   const [recordId, setRecordId] = useState<string | null>(null);
   const [settingsId, setSettingsId] = useState<string | null>(null);
-  const [menu, setMenu] = useState<{ title: string; actions: MenuAction[]; anchor?: DOMRect } | null>(null);
+  /** Which menu is expanded: a patch id, "field", or nothing. */
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [ask, setAsk] = useState<AskConfig | null>(null);
 
   const load = useCallback(async () => {
@@ -61,8 +64,7 @@ export default function FieldPage() {
       ]);
       setFields(list);
       setIsAdmin(me?.role === "ADMIN");
-      setSelectedId(readStored(SELECTED_KEY));
-      setView(readStored(VIEW_KEY) === "list" ? "list" : "map");
+      setError(null);
       return list;
     } catch (err) {
       setError(errorMessage(err, "Couldn't load the field."));
@@ -72,10 +74,15 @@ export default function FieldPage() {
     }
   }, []);
 
+  // Restoring where you were is a mount-time job. It used to live inside
+  // load(), which runs after every write, so a device that cannot read
+  // storage was thrown back to the fields list each time one succeeded.
   useEffect(() => {
-    // Deferred a microtask so the first fetch can never set state during the
-    // effect's own run, however `load` is changed later.
-    queueMicrotask(() => void load());
+    queueMicrotask(() => {
+      setSelectedId(readStored(SELECTED_KEY));
+      setView(readStored(VIEW_KEY) === "list" ? "list" : "map");
+      void load();
+    });
   }, [load]);
 
   useEffect(() => {
@@ -107,6 +114,14 @@ export default function FieldPage() {
   };
   /* ---------- writes ---------- */
 
+  /** Say plainly what a bulk variety change is about to replace. */
+  function varietyWarning(patch: Patch): string {
+    const found = [...new Set(patch.rows.map((r) => r.variety).filter(Boolean))] as string[];
+    const base = "Sets the same variety on every row in this patch. Leave it empty to clear them.";
+    if (found.length <= 1) return base;
+    return `${base} They are not all the same at the moment (${found.join(", ")}) and this replaces every one.`;
+  }
+
   /** Replace one row wherever it sits, without refetching the whole board. */
   const mergeRow = (updated: FieldRow) =>
     setFields((prev) =>
@@ -135,12 +150,16 @@ export default function FieldPage() {
   }
 
   async function changeRow(rowId: string, body: { status?: RowStatus; variety?: string; note?: string }) {
+    if (saving) return;
+    setSaving(true);
     setError(null);
     try {
       mergeRow(await api.patch<FieldRow>(`/api/field/rows/${rowId}`, body));
     } catch (err) {
       setError(errorMessage(err, "Couldn't update that row."));
       await load();
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -150,23 +169,26 @@ export default function FieldPage() {
 
   /** Run an admin change, then refresh the board and say what happened. */
   async function run(action: () => Promise<unknown>, done: string) {
+    if (saving) return;
+    setSaving(true);
     setError(null);
     try {
       await action();
-      await load();
-      setToast(done);
+      // Only claim success once the board has come back, otherwise a failed
+      // refresh toasts "Patch deleted" over a patch still on the screen.
+      const list = await load();
+      if (list) setToast(done);
     } catch (err) {
       setError(errorMessage(err));
+    } finally {
+      setSaving(false);
     }
   }
 
   /* ---------- admin menus ---------- */
 
-  function openPatchMenu(patch: Patch, anchor?: DOMRect) {
-    setMenu({
-      anchor,
-      title: patch.name,
-      actions: [
+  function patchActions(patch: Patch): MenuAction[] {
+    return [
         {
           label: "Add a row",
           onSelect: () =>
@@ -182,8 +204,11 @@ export default function FieldPage() {
           onSelect: () =>
             setAsk({
               title: `Variety for all of ${patch.name}`,
-              message: "Applies to every row in this patch. Leave it empty to clear.",
-              input: { label: "Variety", defaultValue: patch.rows[0]?.variety ?? "", placeholder: "Honeoye", allowEmpty: true },
+              message: varietyWarning(patch),
+              // Deliberately not pre-filled from the first row. Showing one
+              // row's variety as though it were the patch's turned "open it
+              // to check" into "overwrite the others".
+              input: { label: "Variety", defaultValue: "", placeholder: "Honeoye", allowEmpty: true },
               confirmLabel: "Set variety",
               onConfirm: (variety) => run(() => api.patch(`/api/field/patches/${patch.id}`, { variety }), "Variety set"),
             }),
@@ -247,15 +272,11 @@ export default function FieldPage() {
               onConfirm: () => run(() => api.delete(`/api/field/patches/${patch.id}`), "Patch deleted"),
             }),
         },
-      ],
-    });
+    ];
   }
 
-  function openFieldMenu(field: Field, anchor?: DOMRect) {
-    setMenu({
-      anchor,
-      title: field.name,
-      actions: [
+  function fieldActions(field: Field): MenuAction[] {
+    return [
         {
           label: "Add a patch",
           onSelect: () =>
@@ -302,8 +323,7 @@ export default function FieldPage() {
                 }, "Field deleted"),
             }),
         },
-      ],
-    });
+    ];
   }
 
   const addField = () =>
@@ -320,7 +340,7 @@ export default function FieldPage() {
 
   return (
     <div className="admin">
-      <div className="shell">
+      <div className={selected && view === "map" ? "shell wide" : "shell"}>
         {selected ? (
           <>
             <header className="head">
@@ -336,14 +356,25 @@ export default function FieldPage() {
               </div>
               {isAdmin && (
                 <button
-                  className="fmenu"
-                  onClick={(e) => openFieldMenu(selected, e.currentTarget.getBoundingClientRect())}
+                  className={openMenu === "field" ? "fmenu on" : "fmenu"}
+                  onClick={() => setOpenMenu((m) => (m === "field" ? null : "field"))}
+                  aria-expanded={openMenu === "field"}
                   aria-label={`Options for ${selected.name}`}
                 >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                  {openMenu === "field" ? (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                  ) : (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+                  )}
                 </button>
               )}
             </header>
+
+            {openMenu === "field" && (
+              <div className="fieldmenu">
+                <InlineMenu actions={fieldActions(selected)} onClose={() => setOpenMenu(null)} />
+              </div>
+            )}
 
             {fields.length > 1 && (
               <div className="chips">
@@ -384,7 +415,9 @@ export default function FieldPage() {
                     bestRowId={best?.row.id ?? null}
                     isAdmin={isAdmin}
                     onPickRow={(row) => setRecordId(row.id)}
-                    onPatchMenu={(anchor) => openPatchMenu(patch, anchor)}
+                    menuOpen={openMenu === patch.id}
+                    menuActions={patchActions(patch)}
+                    onToggleMenu={() => setOpenMenu((m) => (m === patch.id ? null : patch.id))}
                   />
                 ))
               )
@@ -438,6 +471,7 @@ export default function FieldPage() {
           patchName={recording.patch.name}
           fieldName={selected.name}
           saving={saving}
+          error={error}
           canEdit={isAdmin}
           onCancel={() => setRecordId(null)}
           onSettings={() => {
@@ -453,6 +487,7 @@ export default function FieldPage() {
           row={editing.row}
           patchName={editing.patch.name}
           fieldName={selected.name}
+          error={error}
           position={editing.patch.rows.findIndex((r) => r.id === editing.row.id) + 1}
           total={editing.patch.rows.length}
           onClose={() => setSettingsId(null)}
@@ -474,15 +509,17 @@ export default function FieldPage() {
         />
       )}
 
-      {menu && (
-        <MenuSheet title={menu.title} actions={menu.actions} anchor={menu.anchor} onClose={() => setMenu(null)} />
-      )}
       {ask && <AskSheet config={ask} onClose={() => setAsk(null)} />}
       {toast && <div className="toast">{toast}</div>}
 
       <style jsx>{`
         .admin { background: var(--paper); color: var(--ink); font-family: var(--body); padding: clamp(18px, 4vw, 44px) 10px 64px; }
+        /* The rest of the admin is a 640px reading column, but this page is a
+           map: at 640 a patch of 19 rows already has to scroll sideways on a
+           monitor with room to spare. It widens for the map and stays a
+           column for the list. */
         .shell { max-width: 640px; margin: 0 auto; }
+        .shell.wide { max-width: min(1100px, 100%); }
 
         .head { display: flex; align-items: center; gap: 11px; padding: 0 6px; }
         .titles { display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0; }
@@ -491,16 +528,18 @@ export default function FieldPage() {
         .meta { font-family: var(--data); font-size: 0.72rem; color: var(--muted); }
         .farmpct { font-family: var(--display); font-weight: 600; font-size: 1.8rem; flex: none; }
         .back, .fmenu {
-          width: 40px; height: 40px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+          width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center;
           border: 1px solid var(--line); background: #fff; border-radius: var(--r-pill); color: var(--ink); cursor: pointer;
         }
         .fmenu { color: var(--muted); }
+        .fmenu.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+        .fieldmenu { margin: 14px 6px 0; }
         .back:hover, .fmenu:hover { border-color: var(--muted); }
         .intro { color: var(--muted); margin: 10px 6px 0; line-height: 1.55; font-size: 0.94rem; }
 
         .chips { display: flex; gap: 7px; margin: 14px 6px 0; flex-wrap: wrap; }
         .chip {
-          height: 38px; padding: 0 15px; font-weight: 700; font-size: 0.82rem; color: var(--muted);
+          min-height: 44px; padding: 0 15px; font-weight: 700; font-size: 0.82rem; color: var(--muted);
           background: #fff; border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer;
         }
         .chip:hover { border-color: var(--ink); color: var(--ink); }
@@ -515,7 +554,7 @@ export default function FieldPage() {
 
         .toggle { display: flex; gap: 4px; margin: 14px 6px 0; background: #ece7db; border-radius: var(--r-pill); padding: 4px; }
         .toggle button {
-          flex-grow: 1; height: 38px; font-weight: 700; font-size: 0.85rem; color: var(--muted);
+          flex-grow: 1; min-height: 44px; font-weight: 700; font-size: 0.85rem; color: var(--muted);
           background: transparent; border: none; border-radius: var(--r-pill); cursor: pointer;
         }
         .toggle button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(39, 31, 23, 0.12); }
@@ -528,7 +567,7 @@ export default function FieldPage() {
         .addfield:hover { border-color: var(--wagon); }
 
         .toast {
-          position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 80;
+          position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 80;
           background: var(--ink); color: #fff; font-weight: 600; font-size: 0.95rem;
           padding: 0.8rem 1.3rem; border-radius: var(--r-pill); box-shadow: var(--shadow-lg);
         }

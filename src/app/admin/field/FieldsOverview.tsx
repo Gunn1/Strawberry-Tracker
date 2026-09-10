@@ -36,7 +36,7 @@ export default function FieldsOverview({
               <>
                 <div className="patches">
                   {field.patches.map((patch) => (
-                    <div className="patch" key={patch.id} style={{ flexGrow: Math.max(1, patch.rows.length) }}>
+                    <div className="patch" key={patch.id} style={{ flexGrow: Math.max(1, Math.sqrt(patch.rows.length)) }}>
                       {patch.rows.length === 0 ? (
                         <span className="mini empty" />
                       ) : (
@@ -46,11 +46,12 @@ export default function FieldsOverview({
                           const middle = Math.max(0, 100 - start - end);
                           return (
                             <span className="mini" key={row.id}>
-                              {start > 0 && <span className="mseg straw" style={{ height: `${start}%` }} />}
+                              {/* Far end at the top, matching the full map. */}
+                              {end > 0 && <span className="mseg straw" style={{ height: `${end}%` }} />}
                               {middle > 0 && (
                                 <span className="mseg" style={{ height: `${middle}%`, background: STATUS_META[row.status].fill }} />
                               )}
-                              {end > 0 && <span className="mseg straw" style={{ height: `${end}%` }} />}
+                              {start > 0 && <span className="mseg straw" style={{ height: `${start}%` }} />}
                             </span>
                           );
                         })
@@ -60,7 +61,7 @@ export default function FieldsOverview({
                 </div>
                 <div className="labels">
                   {field.patches.map((patch) => (
-                    <span key={patch.id} style={{ flexGrow: Math.max(1, patch.rows.length) }}>{patch.name}</span>
+                    <span key={patch.id} style={{ flexGrow: Math.max(1, Math.sqrt(patch.rows.length)) }}>{patch.name}</span>
                   ))}
                 </div>
               </>
@@ -83,9 +84,15 @@ export default function FieldsOverview({
         .meta { font-family: var(--data); font-size: 0.68rem; color: var(--muted); }
         .pct { font-family: var(--display); font-weight: 600; font-size: 1.6rem; flex: none; }
 
-        .patches { display: flex; gap: 7px; height: 40px; }
-        .patch { display: flex; gap: 2px; flex-basis: 0; min-width: 0; background: #f3ead8; border-radius: 4px; padding: 3px; }
-        .mini { flex: 1 1 0; min-width: 2px; display: flex; flex-direction: column; border-radius: 2px; overflow: hidden; background: #d9c7a6; }
+        /* Each group is allowed to shrink to nothing and hide the overflow.
+           Without this the minis laid out wider than the space they were
+           given and spilled past the card, scrolling the whole document. */
+        .patches { display: flex; gap: 7px; height: 40px; overflow: hidden; }
+        .patch {
+          display: flex; gap: 2px; flex-basis: 0; min-width: 0; overflow: hidden;
+          background: #f3ead8; border-radius: 4px; padding: 3px;
+        }
+        .mini { flex: 1 1 0; min-width: 1px; display: flex; flex-direction: column; border-radius: 2px; overflow: hidden; background: #d9c7a6; }
         .mini.empty { background: #e4d8c2; }
         .mseg { display: block; width: 100%; }
         .mseg.straw { --straw-angle: 0deg; background: ${STRAW}; }

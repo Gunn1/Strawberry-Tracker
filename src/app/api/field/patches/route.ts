@@ -18,7 +18,14 @@ export async function POST(req: Request) {
 
   const prisma = getPrisma();
   try {
-    const sortOrder = await prisma.patch.count({ where: { fieldId } });
+    // count() collides once anything has been deleted, which drops the new
+    // one into the middle of the map. Take the real maximum instead.
+    const last = await prisma.patch.findFirst({
+      where: { fieldId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const sortOrder = (last?.sortOrder ?? -1) + 1;
     const patch = await prisma.patch.create({
       data: { fieldId, name, sortOrder },
       include: { rows: true },

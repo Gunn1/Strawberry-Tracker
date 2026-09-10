@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import type { FieldRow } from "@/types/domain";
 import { STATUS_META, STEP, STRAW, freshPct } from "./shared";
-import { isWide } from "./viewport";
+import { useIsWide } from "./viewport";
 
 function clamp(value: number, max: number): number {
   return Math.max(0, Math.min(max, value));
@@ -20,6 +20,7 @@ export default function RecordSheet({
   patchName,
   fieldName,
   saving,
+  error,
   canEdit,
   onCancel,
   onSave,
@@ -29,6 +30,8 @@ export default function RecordSheet({
   patchName: string;
   fieldName: string;
   saving: boolean;
+  /** A failed save. Shown here because the page's banner sits behind this. */
+  error: string | null;
   canEdit: boolean;
   onCancel: () => void;
   onSave: (pickedStart: number, pickedEnd: number) => void;
@@ -37,7 +40,7 @@ export default function RecordSheet({
   const [start, setStart] = useState(row.pickedStart);
   const [end, setEnd] = useState(row.pickedEnd);
 
-  const [centred] = useState(isWide);
+  const centred = useIsWide();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
@@ -85,7 +88,7 @@ export default function RecordSheet({
           </div>
           <div className="scale">
             <span style={{ width: `${start}%` }}>{start > 8 ? `${start}%` : ""}</span>
-            <span className="mid" style={{ width: `${middle}%` }}>{middle > 12 ? `${middle}% fresh` : ""}</span>
+            <span className="mid" style={{ width: `${middle}%` }}>{middle >= 22 ? `${middle}% fresh` : middle >= 12 ? `${middle}%` : ""}</span>
             <span style={{ width: `${end}%` }}>{end > 8 ? `${end}%` : ""}</span>
           </div>
         </div>
@@ -131,6 +134,8 @@ export default function RecordSheet({
           </div>
         </div>
 
+        {error && <p className="failed">{error}</p>}
+
         <div className="actions">
           <button className="cancel" onClick={onCancel} disabled={saving}>Cancel</button>
           <button className="save" onClick={() => onSave(start, end)} disabled={saving || !dirty}>
@@ -150,7 +155,7 @@ export default function RecordSheet({
             display: flex; align-items: flex-end; justify-content: center;
           }
           .sheet {
-            background: var(--paper); width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto;
+            background: var(--paper); width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
             border-radius: 28px 28px 0 0; padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
             box-shadow: 0 -18px 50px -20px rgba(39, 31, 23, 0.5);
           }
@@ -170,7 +175,10 @@ export default function RecordSheet({
           .seg { display: block; height: 100%; }
           .seg.straw { --straw-angle: 90deg; background: ${STRAW}; }
           .scale { display: flex; }
-          .scale span { font-family: var(--data); font-size: 0.68rem; color: var(--muted); text-align: center; overflow: hidden; white-space: nowrap; }
+          .scale span {
+            font-family: var(--data); font-size: 0.68rem; color: var(--muted); text-align: center;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+          }
           .scale .mid { color: #4f7a33; }
 
           .control { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
@@ -199,6 +207,11 @@ export default function RecordSheet({
           }
           .jumps button:hover { border-color: var(--ink); }
 
+          .failed {
+            margin: 20px 0 0; background: #fdeee7; border: 1px solid #f4d3c4;
+            color: var(--wagon-deep); font-size: 0.86rem; font-weight: 500;
+            padding: 0.75rem 0.9rem; border-radius: var(--r-md); line-height: 1.5;
+          }
           .actions { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
           .cancel {
             flex: none; padding: 0 22px; height: 52px; font-weight: 700; font-size: 0.95rem; color: var(--muted);

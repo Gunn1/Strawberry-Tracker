@@ -1,6 +1,7 @@
 "use client";
 
 import type { FieldRow, Patch } from "@/types/domain";
+import { InlineMenu, type MenuAction } from "./ActionSheet";
 import { STATUS_META, STRAW, freshPct } from "./shared";
 
 /**
@@ -37,14 +38,18 @@ export default function PatchMap({
   patch,
   bestRowId,
   isAdmin,
+  menuOpen,
+  menuActions,
   onPickRow,
-  onPatchMenu,
+  onToggleMenu,
 }: {
   patch: Patch;
   bestRowId: string | null;
   isAdmin: boolean;
+  menuOpen: boolean;
+  menuActions: MenuAction[];
   onPickRow: (row: FieldRow) => void;
-  onPatchMenu: (anchor: DOMRect) => void;
+  onToggleMenu: () => void;
 }) {
   const rows = patch.rows;
   const fresh = rows.length ? Math.round(rows.reduce((s, r) => s + freshPct(r), 0) / rows.length) : 0;
@@ -61,16 +66,29 @@ export default function PatchMap({
         </div>
         {isAdmin && (
           <button
-            className="pmenu"
-            onClick={(e) => onPatchMenu(e.currentTarget.getBoundingClientRect())}
+            className={menuOpen ? "pmenu on" : "pmenu"}
+            onClick={onToggleMenu}
+            aria-expanded={menuOpen}
             aria-label={`Options for ${patch.name}`}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
-            </svg>
+            {menuOpen ? (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            ) : (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+              </svg>
+            )}
           </button>
         )}
       </div>
+
+      {menuOpen && (
+        <div className="menuwrap">
+          <InlineMenu actions={menuActions} onClose={onToggleMenu} />
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="norows">No rows yet.</p>
@@ -100,9 +118,12 @@ export default function PatchMap({
                       className="strip"
                       style={{ boxShadow: best ? "0 0 0 3px rgba(79,122,51,.34)" : undefined }}
                     >
-                      {start > 0 && <span className="seg straw" style={{ height: `${start}%` }} />}
-                      {middle > 0 && <span className="seg" style={{ height: `${middle}%`, background: meta.fill }} />}
+                      {/* Top of the strip is the FAR end, because the far
+                          landmark is labelled above it. pickedStart is the
+                          near end, so it has to be drawn last. */}
                       {end > 0 && <span className="seg straw" style={{ height: `${end}%` }} />}
+                      {middle > 0 && <span className="seg" style={{ height: `${middle}%`, background: meta.fill }} />}
+                      {start > 0 && <span className="seg straw" style={{ height: `${start}%` }} />}
                     </span>
                     <span className="num">{shortLabel(row.label)}</span>
                   </button>
@@ -134,10 +155,12 @@ export default function PatchMap({
         .phead h2 { font-family: var(--display); font-weight: 600; font-size: 1.25rem; margin: 0; }
         .pmeta { font-family: var(--data); font-size: 0.68rem; color: var(--muted); }
         .pmenu {
-          width: 40px; height: 40px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+          width: 44px; height: 44px; flex: none; display: inline-flex; align-items: center; justify-content: center;
           border: 1px solid var(--line); background: #fff; border-radius: var(--r-pill); color: var(--muted); cursor: pointer;
         }
         .pmenu:hover { color: var(--ink); border-color: var(--muted); }
+        .pmenu.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+        .menuwrap { padding: 0 14px; }
         .norows { font-family: var(--data); font-size: 0.85rem; color: var(--muted); margin: 0 0 4px; padding: 0 14px; }
 
         .viewport { overflow-x: auto; overscroll-behavior-x: contain; }

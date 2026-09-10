@@ -81,7 +81,10 @@ export default function RowList({
         .seg { display: block; height: 100%; }
         .seg.straw { --straw-angle: 90deg; background: ${STRAW}; }
         .who { display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0; }
-        .name { font-weight: 700; font-size: 0.9rem; color: var(--ink); }
+        .name {
+          font-weight: 700; font-size: 0.9rem; color: var(--ink);
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
         .item.spent .name { color: var(--muted); }
         .detail {
           font-family: var(--data); font-size: 0.68rem;
